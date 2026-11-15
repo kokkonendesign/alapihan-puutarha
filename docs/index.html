@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<title>Alapihan kasvihuonekartta</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root {
+    --bg: #f6f4ee;
+    --surface: #ffffff;
+    --ink: #1f2a22;
+    --muted: #66705f;
+    --line: #d9d5c8;
+    --wall: #3b4a3f;
+    --table: #e7dcc6;
+    --table-stroke: #a8916a;
+    --table-empty: #f1ece1;
+    --table-filled: #dcc595;
+    --plant: #5f9b62;
+    --plant-stroke: #3d7341;
+    --plant-empty: #c5d6c0;
+    --accent: #e0882f;
+    --accent-soft: #f7d9b5;
+    --select: #c4581b;
+    --badge-bg: #1f2a22;
+    --badge-ink: #ffffff;
+    --focus: #2d6fd6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141a16;
+      --surface: #1d241f;
+      --ink: #e8ece4;
+      --muted: #9aa695;
+      --line: #344037;
+      --wall: #b8c7b9;
+      --table: #4a4234;
+      --table-stroke: #8d7a58;
+      --table-empty: #2c2a24;
+      --table-filled: #6e5c3a;
+      --plant: #6fb06f;
+      --plant-stroke: #9bd29a;
+      --plant-empty: #3b5340;
+      --accent: #f0a050;
+      --accent-soft: #5a3f22;
+      --select: #ffb46b;
+      --badge-bg: #e8ece4;
+      --badge-ink: #141a16;
+      --focus: #7aa8ff;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141a16; --surface: #1d241f; --ink: #e8ece4; --muted: #9aa695; --line: #344037;
+    --wall: #b8c7b9; --table: #4a4234; --table-stroke: #8d7a58; --table-empty: #2c2a24; --table-filled: #6e5c3a;
+    --plant: #6fb06f; --plant-stroke: #9bd29a; --plant-empty: #3b5340;
+    --accent: #f0a050; --accent-soft: #5a3f22; --select: #ffb46b;
+    --badge-bg: #e8ece4; --badge-ink: #141a16; --focus: #7aa8ff;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header, main {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  header { padding-block: 20px 8px; max-width: 1180px; margin: 0 auto; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+  .head-text { min-width: 0; }
+  .theme-toggle {
+    flex: none; display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 12px; border-radius: 999px; font-size: .85rem;
+    background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  }
+  .theme-toggle:hover { border-color: var(--accent); }
+  .theme-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .theme-toggle .i-sun { display: none; }
+  .theme-toggle.is-dark .i-sun { display: block; }
+  .theme-toggle.is-dark .i-moon { display: none; }
+  @media (max-width: 480px) { .theme-label { display: none; } .theme-toggle { padding: 9px; } }
+  h1 { font-size: 1.4rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  .status { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: .82rem; color: var(--muted); }
+  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--plant); }
+  .status[data-state="loading"]::before { background: var(--accent); }
+  .status[data-state="readonly"]::before, .status[data-state="offline"]::before { background: var(--muted); }
+
+  main {
+    max-width: 1180px; margin: 0 auto; padding-block: 8px 32px;
+    display: grid; gap: 20px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 900px) {
+    main { grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr); align-items: start; }
+    .panel { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+  }
+
+  .map-wrap {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px; position: relative;
+  }
+  svg.map { display: block; width: 100%; height: auto; max-height: calc(100vh - 150px); margin: 0 auto; touch-action: manipulation; }
+
+  /* walls */
+  .wall { fill: none; stroke: var(--wall); stroke-width: 6; stroke-linecap: round; }
+  .floor { fill: var(--bg); opacity: .55; }
+  .entrance-text { fill: var(--muted); font-size: 22px; font-weight: 600; text-anchor: middle; }
+  .entrance-arrow { stroke: var(--muted); stroke-width: 3; fill: none; }
+  /* sections */
+  .sec { cursor: pointer; outline: none; }
+  .sec .shape { transition: fill .15s, stroke .15s; }
+  .sec.table .shape { fill: var(--table); stroke: var(--table-stroke); stroke-width: 2; }
+  .sec.table.empty .shape { fill: var(--table-empty); stroke-dasharray: 4 4; }
+  .sec.plants .pot { fill: var(--plant); stroke: var(--plant-stroke); stroke-width: 2; transition: fill .15s, stroke .15s; }
+  .sec.plants.empty .pot { fill: var(--plant-empty); }
+  .sec.plants .hit { fill: transparent; stroke: transparent; stroke-width: 2; rx: 14; pointer-events: none; }
+  .sec.plants .tap { fill: transparent; }
+  /* pöytä sections and side strips */
+  .sec.table .shape { stroke-width: 1; }
+  .sec.table:not(.empty) .shape { fill: var(--table-filled); }
+  .sec.table.side .shape { stroke-width: 1.2; }
+  .side-hit { fill: transparent; }
+  .sec.table.side.empty .shape { fill: var(--table); stroke-dasharray: none; }
+  .sec.table.side:not(.empty) .shape { fill: var(--table-stroke); }
+  .frame { pointer-events: none; }
+  .frame-outline { fill: none; stroke: var(--table-stroke); stroke-width: 2; }
+  svg.map[data-tab="lane"]:not(.searching) .frame,
+  svg.map[data-tab="plants"]:not(.searching) .frame { opacity: .3; }
+  .sec.lane .lane-hit { fill: transparent; }
+  .sec.lane .shape { fill: var(--plant); stroke: var(--plant-stroke); stroke-width: 1.5; }
+  .sec.lane.empty .shape { fill: var(--bg); stroke: var(--table-stroke); stroke-dasharray: 4 3; }
+  svg.map .sec.lane:hover .shape, svg.map .sec.lane.hl .shape { fill: var(--accent); stroke: var(--select); stroke-dasharray: none; }
+  svg.map .sec.lane.selected .shape { fill: var(--accent); stroke: var(--select); stroke-width: 3; }
+  .lane-num { fill: var(--muted); font-size: 12px; font-weight: 600; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+
+  svg.map .sec:hover .shape, svg.map .sec.hl .shape { fill: var(--accent-soft); stroke: var(--accent); stroke-dasharray: none; }
+  svg.map .sec.plants:hover .pot, svg.map .sec.plants.hl .pot { fill: var(--accent); stroke: var(--select); }
+  svg.map .sec.plants:hover .hit, svg.map .sec.plants.hl .hit { stroke: var(--accent); stroke-dasharray: 4 4; }
+
+  svg.map .sec.selected .shape { fill: var(--accent-soft); stroke: var(--select); stroke-width: 4; stroke-dasharray: none; }
+  svg.map .sec.plants.selected .pot { fill: var(--accent); stroke: var(--select); }
+  svg.map .sec.plants.selected .hit { stroke: var(--select); stroke-width: 3; stroke-dasharray: none; }
+  svg.map .sec:focus-visible .shape, svg.map .sec.plants:focus-visible .hit { stroke: var(--focus); stroke-width: 4; stroke-dasharray: none; }
+
+  /* view buttons above the map: choose which kind to show */
+  .view-bar { max-width: 1180px; margin: 0 auto; padding-block: 4px 6px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .view-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .view-buttons button {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: .95rem;
+    background: var(--surface); color: var(--ink); border: 1.5px solid var(--line);
+  }
+  .view-buttons button:hover { border-color: var(--accent); }
+  .view-buttons button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .view-buttons .count { font-size: .78rem; font-weight: 500; opacity: .7; font-variant-numeric: tabular-nums; }
+  .kdot { display: inline-block; flex: none; }
+  .kind-all .kdot { width: 14px; height: 14px; border-radius: 4px; background: conic-gradient(var(--table) 0 33%, var(--plant) 0 66%, var(--plant-empty) 0); border: 1.5px solid var(--table-stroke); }
+  .kind-table .kdot { width: 16px; height: 11px; border-radius: 3px; background: var(--table); border: 1.5px solid var(--table-stroke); }
+  .kind-lane .kdot { width: 5px; height: 16px; border-radius: 3px; background: var(--plant); border: 1.5px solid var(--plant-stroke); }
+  .kind-plants .kdot { width: 13px; height: 13px; border-radius: 50%; background: var(--plant); border: 1.5px solid var(--plant-stroke); }
+  @media (max-width: 480px) {
+    .view-buttons { display: grid; grid-template-columns: 1fr 1fr; }
+    .view-buttons button { justify-content: center; padding: 10px 8px; font-size: .9rem; }
+  }
+
+  /* only the chosen kind is shown; tables stay faint as a guide */
+  .sec { transition: opacity .15s; }
+  svg.map[data-tab="table"]:not(.searching) .sec.lane,
+  svg.map[data-tab="table"]:not(.searching) .sec.plants,
+  svg.map[data-tab="lane"]:not(.searching) .sec.plants,
+  svg.map[data-tab="plants"]:not(.searching) .sec.lane { display: none; }
+  svg.map[data-tab="lane"]:not(.searching) .sec.table,
+  svg.map[data-tab="plants"]:not(.searching) .sec.table { opacity: .3; pointer-events: none; }
+  svg.map[data-tab="table"]:not(.searching) .lane-num,
+  svg.map[data-tab="plants"]:not(.searching) .lane-num { display: none; }
+  svg.map[data-tab="lane"] .sec.lane.empty .shape { stroke: var(--plant-stroke); stroke-width: 2; }
+
+  .map.searching .sec:not(.match) { opacity: .25; pointer-events: none; }
+  .map.searching .sec.match .shape { stroke: var(--select); stroke-width: 4; }
+  .map.searching .sec.plants.match .hit { stroke: var(--select); stroke-width: 3; stroke-dasharray: none; }
+
+  .badge circle { fill: var(--badge-bg); }
+  .badge text { fill: var(--badge-ink); font-size: 13px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  .sec-label { fill: var(--ink); font-size: 17px; font-weight: 600; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  .sec-label.empty { fill: var(--muted); font-weight: 400; font-style: italic; font-size: 15px; }
+
+  /* tooltip (mouse only) */
+  .tip {
+    position: absolute; pointer-events: none; z-index: 5;
+    background: var(--ink); color: var(--bg); padding: 6px 10px; border-radius: 8px;
+    font-size: 13px; max-width: 220px; opacity: 0; transition: opacity .1s; transform: translate(-50%, calc(-100% - 12px));
+  }
+  .tip.show { opacity: 1; }
+  .tip b { display: block; }
+
+  /* panel */
+  .panel { display: grid; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .card h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+  input[type=search], input[type=text], textarea {
+    width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  }
+  textarea { min-height: 70px; resize: vertical; }
+  input:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin: 10px 0 4px; }
+
+  .detail-title { display: flex; align-items: center; gap: 10px; }
+  .detail-title .code, .pop-head .code { white-space: nowrap; flex: none; }
+  .detail-title .code { background: var(--badge-bg); color: var(--badge-ink); font-weight: 700; border-radius: 999px; padding: 2px 10px; font-size: .85rem; }
+  .detail-title h3 { margin: 0; font-size: 1.1rem; }
+  .species { font-size: 1.35rem; font-weight: 650; margin: 10px 0 2px; }
+  .species.none { color: var(--muted); font-weight: 400; font-style: italic; font-size: 1rem; }
+  .note { color: var(--muted); margin: 4px 0 0; white-space: pre-wrap; }
+  .hint { color: var(--muted); margin: 0; }
+
+  /* pop-up editor */
+  [hidden] { display: none !important; }
+  .pop-backdrop {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(20, 26, 22, .45);
+    display: flex; align-items: center; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .pop {
+    width: min(440px, 100%); max-height: 100%; overflow: auto;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 16px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.25);
+    animation: pop-in .14s ease-out;
+  }
+  @keyframes pop-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .pop { animation: none; } }
+  @media (max-width: 560px) {
+    .pop-backdrop { align-items: flex-end; padding-bottom: 0; }
+    .pop { border-radius: 16px 16px 0 0; padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
+  }
+  .pop-head { display: flex; align-items: flex-start; gap: 10px; }
+  .pop-head .code { background: var(--badge-bg); color: var(--badge-ink); font-weight: 700; border-radius: 999px; padding: 3px 10px; font-size: .85rem; margin-top: 2px; }
+  .pop-titles { flex: 1; min-width: 0; }
+  .pop-kind { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .pop-titles h3 { margin: 0; font-size: 1.05rem; text-wrap: balance; }
+  .pop-x { flex: none; width: 36px; height: 36px; padding: 0; border-radius: 50%; font-size: 1.4rem; line-height: 1; background: none; }
+  .pop input[type=text] { font-size: 1.1rem; padding: 12px 14px; }
+  .pop .btns button { flex: 1 1 auto; }
+  .pop .danger { color: var(--select); }
+  .pop-readonly { display: none; }
+  .pop.readonly .pop-readonly, .pop-backdrop.readonly .pop-readonly { display: block; }
+  .pop-backdrop.readonly .pop-edit { display: none; }
+
+  .btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    font: inherit; border-radius: 10px; padding: 9px 14px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  ul.list li + li { border-top: 1px solid var(--line); }
+  ul.list button {
+    width: 100%; text-align: left; border: 0; background: none; border-radius: 8px;
+    display: grid; grid-template-columns: 44px 1fr; gap: 8px; padding: 9px 6px; align-items: center;
+  }
+  ul.list button:hover, ul.list button.hl { background: var(--accent-soft); }
+  ul.list button.selected { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--select); }
+  ul.list .c { font-weight: 700; font-size: .85rem; color: var(--muted); }
+  ul.list .n { display: block; font-size: .82rem; color: var(--muted); }
+  ul.list .s { display: block; font-weight: 600; }
+  ul.list .s.none { font-weight: 400; font-style: italic; color: var(--muted); }
+  ul.list li.hidden { display: none; }
+  .group-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
+  .group-title:first-of-type { margin-top: 0; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); margin-top: 10px; justify-content: center; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 18px; height: 12px; border-radius: 3px; border: 2px solid var(--table-stroke); background: var(--table); display: inline-block; }
+  .sw.p { width: 14px; height: 14px; border-radius: 50%; background: var(--plant); border-color: var(--plant-stroke); }
+  .sw.e { background: var(--table-empty); border-style: dashed; }
+  .sw.l { width: 6px; height: 18px; border-radius: 3px; border-width: 1.5px; background: var(--plant); border-color: var(--plant-stroke); }
+</style>
+</head>
+<body>
+<header>
+  <div class="head-text">
+    <h1>Alapihan Puutarha · Kasvihuoneen kasvikartta</h1>
+    <p>Valitse painikkeista, mitä kartalla näytetään, ja napauta kohtaa nähdäksesi, mitä siinä kasvaa.</p>
+    <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
+  </div>
+  <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Vaihda tummaan tilaan">
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+    <span class="theme-label">Tumma</span>
+  </button>
+</header>
+<nav class="view-bar" aria-label="Valitse, mitä kartalla näytetään">
+  <div class="view-buttons" id="tabs"></div>
+</nav>
+
+<main>
+  <section class="map-wrap" aria-label="Kasvihuoneen pohjapiirros">
+    <svg class="map" id="map" data-tab="all" viewBox="-24 -24 832 1210" role="group" aria-label="Kasvihuoneen pohjapiirros, sisäänkäynti alhaalla"></svg>
+    <div class="tip" id="tip" role="presentation"></div>
+    <div class="legend">
+      <span><i class="sw"></i>Pöytä</span>
+      <span><i class="sw l"></i>Kukkakouru (1–4)</span>
+      <span><i class="sw p"></i>Amppelit</span>
+      <span><i class="sw e"></i>Ei vielä merkitty</span>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="card">
+      <h2>Etsi kasvi</h2>
+      <input type="search" id="search" placeholder="esim. tomaatti, basilika…" aria-label="Etsi kasveja">
+    </div>
+
+    <div class="card" id="detail" aria-live="polite"></div>
+  </aside>
+</main>
+
+<div class="pop-backdrop" id="pop" hidden>
+  <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
+    <div class="pop-head">
+      <span class="code" id="pop-code"></span>
+      <div class="pop-titles">
+        <span class="pop-kind" id="pop-kind"></span>
+        <h3 id="pop-title"></h3>
+      </div>
+      <button type="button" class="pop-x" id="pop-close" aria-label="Sulje">×</button>
+    </div>
+
+    <div class="pop-readonly">
+      <div class="species" id="pop-view"></div>
+      <p class="note" id="pop-view-note"></p>
+    </div>
+
+    <form id="pop-form" class="pop-edit" autocomplete="off">
+      <label for="pop-species">Kasvi</label>
+      <input type="text" id="pop-species" placeholder="Kirjoita kasvi, esim. basilika" enterkeyhint="done">
+      <label for="pop-note">Muistiinpanot (vapaaehtoinen)</label>
+      <textarea id="pop-note" rows="2" placeholder="Lajike, kylvöpäivä, kastelu…"></textarea>
+      <div class="btns">
+        <button type="submit" class="primary">Tallenna</button>
+        <button type="button" id="pop-cancel">Peruuta</button>
+        <button type="button" id="pop-clear" class="danger">Tyhjennä</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   Sections of the greenhouse. Edit the "species" and "note" values
+   here to set the default labels everyone sees. Labels edited in the
+   page are saved in this browser on top of these defaults.
+------------------------------------------------------------------- */
+/* Long tables each carry 4 narrow planting lines drawn on top,
+   numbered 1–4 from the left. The table and each line are labelled separately. */
+const LINE_COUNT = 4;
+/* Every pöytä is split into 6 equal sections along its length, with a thin
+   strip along each long side split into 3 parts. dir "v" = runs front to back,
+   "h" = runs left to right (the two short tables on the back wall). */
+const SECTION_COUNT = 6, SIDE_PARTS = 3;
+const TABLES = [
+  { id: "T1", place: "takana vasemmalla",               dir: "h", rect: [60, 18, 192, 50] },
+  { id: "T2", place: "takana oikealla",              dir: "h", rect: [532, 18, 192, 50] },
+  { id: "T3", place: "vasen seinä",               dir: "v", rect: [100, 112, 83, 800] },
+  { id: "T4", place: "keskellä, käytävän vasemmalla puolella",  dir: "v", rect: [255, 112, 96, 800] },
+  { id: "T6", place: "keskellä, käytävän oikealla puolella", dir: "v", rect: [433, 112, 96, 800] },
+  { id: "T7", place: "oikea seinä",              dir: "v", rect: [601, 112, 83, 800] },
+  // Lattia: thin planting areas on the ground along the outer walls,
+  // under the outermost kukkakourut (no side strips, no table kukkakourut)
+  { id: "LV", title: "Lattia, vasen", place: "vasen reuna", dir: "v", floor: true, rect: [6, 112, 38, 800] },
+  { id: "LO", title: "Lattia, oikea", place: "oikea reuna", dir: "v", floor: true, rect: [740, 112, 38, 800] },
+];
+const LINED_TABLES = TABLES.filter(t => t.dir === "v" && !t.floor);
+// side strips only on the long tables (not on T1/T2 by the back wall)
+const SIDES = { v: [["L", "vasen sivu"], ["R", "oikea sivu"]], h: [] };
+function sectionWhere(t, n) {
+  if (n === 1) return t.dir === "v" ? " (takapää)" : " (vasen pää)";
+  if (n === SECTION_COUNT) return t.dir === "v" ? " (oven puoleinen pää)" : " (oikea pää)";
+  return "";
+}
+function partWhere(t, n) {
+  if (n === 1) return t.dir === "v" ? " (takana)" : " (vasemmalla)";
+  if (n === SIDE_PARTS) return t.dir === "v" ? " (oven puolella)" : " (oikealla)";
+  return " (keskellä)";
+}
+
+const DEFAULT_SECTIONS = [
+  ...TABLES.flatMap(t => [
+    ...Array.from({ length: SECTION_COUNT }, (_, i) => ({
+      id: `${t.id}-S${i + 1}`, kind: "table", part: "main", group: "Pöydät",
+      name: `${t.title || "Pöytä " + t.id} · osa ${i + 1}/${SECTION_COUNT}${sectionWhere(t, i + 1)}`, species: "", note: "",
+      floor: !!t.floor,
+    })),
+    ...(t.floor ? [] : SIDES[t.dir]).flatMap(([code, sideName]) => Array.from({ length: SIDE_PARTS }, (_, i) => ({
+      id: `${t.id}-${code}${i + 1}`, kind: "table", part: "side", group: "Pöydät",
+      name: `Pöytä ${t.id} · ${sideName}, osa ${i + 1}/${SIDE_PARTS}${partWhere(t, i + 1)}`, species: "", note: "",
+    }))),
+  ]),
+  ...LINED_TABLES.flatMap(t => Array.from({ length: LINE_COUNT }, (_, i) => ({
+    id: `${t.id}-${i + 1}`, kind: "lane", group: `Kukkakourut pöydällä ${t.id} (${t.place})`,
+    name: `Kukkakouru ${i + 1}, pöytä ${t.id}`, species: "", note: "",
+  }))),
+  { id: "T1-1", kind: "lane", group: "Kukkakourut pöydällä T1", name: "Kukkakouru, pöytä T1", species: "", note: "" },
+  { id: "T2-1", kind: "lane", group: "Kukkakourut pöydällä T2", name: "Kukkakouru, pöytä T2", species: "", note: "" },
+  { id: "KE", kind: "lane", group: "Kukkakourut reunimmaiset", name: "Kukkakouru, sisäänkäynnin vasemmalla puolella", species: "", note: "" },
+  { id: "KR-L", kind: "lane", group: "Kukkakourut reunimmaiset", name: "Kukkakouru reunimmainen, vasen", species: "", note: "" },
+  { id: "KR-R", kind: "lane", group: "Kukkakourut reunimmaiset", name: "Kukkakouru reunimmainen, oikea", species: "", note: "" },
+  { id: "H1", kind: "plants", group: "Amppelit", name: "Amppelit, takana vasemmalla",   species: "", note: "" },
+  { id: "H2", kind: "plants", group: "Amppelit", name: "Amppelit, takana oikealla",  species: "", note: "" },
+  { id: "H3", kind: "plants", group: "Amppelit", name: "Amppelit, vasen seinä",   species: "", note: "" },
+  { id: "H4", kind: "plants", group: "Amppelit", name: "Amppelit, oikea seinä",  species: "", note: "" },
+  { id: "H5", kind: "plants", group: "Amppelit", name: "Amppelit, sisäänkäynnin luona", species: "", note: "" },
+  { id: "H6", kind: "plants", group: "Amppelit", name: "Amppelit, pöydän T4 yllä",  species: "", note: "" },
+  { id: "H7", kind: "plants", group: "Amppelit", name: "Amppelit, pöydän T6 yllä",  species: "", note: "" },
+];
+
+/* The three tabs above the map: each shows one kind of section. */
+const TABS = [
+  { kind: "all",    label: "Kaikki",      hint: "Napauta pöytää, kukkakourua tai amppeliriviä nähdäksesi, mitä siinä kasvaa." },
+  { kind: "table",  label: "Pöydät",      hint: "Napauta jotakin pöydän kuudesta osasta tai pöydän sivulla olevaa kaistaa nähdäksesi, mitä siinä kasvaa." },
+  { kind: "lane",   label: "Kukkakourut", hint: "Napauta kukkakourua (kapeat viivat pitkillä pöydillä) nähdäksesi, mitä siinä kasvaa." },
+  { kind: "plants", label: "Amppelit",    hint: "Napauta amppeliriviä nähdäksesi, mitä siinä kasvaa." },
+];
+
+/* Geometry, traced from the hand sketch (units are SVG viewBox units). */
+const range = (n, a, b) => Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));
+const W = 784, H = 1110;           // inner width/height of the greenhouse
+const DOOR = [342, 442];           // entrance gap in the front wall
+// extra floor added outside the original sketch on the left and right,
+// where the outermost kukkakourut (reunimmaiset) run along the walls
+const EDGE_LANE_X = 25, EDGE_LANE_W = 12;
+const FRAME_BADGE_Y = 95;
+const SIDE_W = 14, SIDE_GAP = 2, PART_GAP = 4;
+const GEOM = {
+  H1: { pts: range(5, 78, 230).map(x => [x, 52]),  r: 11, badge: [272, 52] },
+  H2: { pts: range(5, 554, 706).map(x => [x, 52]), r: 11, badge: [512, 52] },
+  H3: { pts: range(17, 130, 898).map(y => [114, y]), r: 13, badge: [114, 952] },
+  H4: { pts: range(17, 130, 898).map(y => [668, y]), r: 13, badge: [668, 952] },
+  H5: { pts: range(14, 70, 714).map(x => [x, 1010]), r: 14, badge: [392, 1056], label: [392, 1056] },
+  H6: { pts: range(17, 130, 898).map(y => [279, y]), r: 13, badge: [279, 952] },
+  H7: { pts: range(17, 130, 898).map(y => [505, y]), r: 13, badge: [505, 952] },
+};
+for (const t of TABLES) {
+  const [x, y, w, h] = t.rect;
+  const len = t.dir === "v" ? h : w;
+  const seg = len / SECTION_COUNT;
+  for (let i = 0; i < SECTION_COUNT; i++) {
+    GEOM[`${t.id}-S${i + 1}`] = { rx: 0, rect: t.dir === "v" ? [x, y + i * seg, w, seg] : [x + i * seg, y, seg, h] };
+  }
+  if (t.floor || !SIDES[t.dir].length) continue;
+  const part = (len - PART_GAP * (SIDE_PARTS - 1)) / SIDE_PARTS;
+  const [[a], [b]] = SIDES[t.dir];
+  for (let i = 0; i < SIDE_PARTS; i++) {
+    const off = i * (part + PART_GAP);
+    if (t.dir === "v") {
+      GEOM[`${t.id}-${a}${i + 1}`] = { rx: 3, rect: [x - SIDE_GAP - SIDE_W, y + off, SIDE_W, part] };
+      GEOM[`${t.id}-${b}${i + 1}`] = { rx: 3, rect: [x + w + SIDE_GAP, y + off, SIDE_W, part] };
+    } else {
+      GEOM[`${t.id}-${a}${i + 1}`] = { rx: 3, rect: [x + off, y - SIDE_GAP - SIDE_W, part, SIDE_W] };
+      GEOM[`${t.id}-${b}${i + 1}`] = { rx: 3, rect: [x + off, y + h + SIDE_GAP, part, SIDE_W] };
+    }
+  }
+}
+
+const LINE_W = 9, LINE_HIT_W = 17, LINE_INSET = 10;
+for (const t of LINED_TABLES) {
+  const [x, y, w, h] = t.rect, lw = w / LINE_COUNT;
+  for (let i = 0; i < LINE_COUNT; i++) {
+    const cx = x + i * lw + lw / 2;
+    GEOM[`${t.id}-${i + 1}`] = {
+      rect: [cx - LINE_W / 2, y + LINE_INSET, LINE_W, h - LINE_INSET * 2],
+      hit: [cx - LINE_HIT_W / 2, y + LINE_INSET - 4, LINE_HIT_W, h - LINE_INSET * 2 + 8],
+      num: [cx, y + h + 14],
+    };
+  }
+}
+// one kukkakouru along the back edge of each back-wall table (T1, T2), behind the amppelit
+for (const t of TABLES.filter(t => t.dir === "h")) {
+  const [x, y, w, h] = t.rect, cy = y + 10;
+  GEOM[`${t.id}-1`] = { rect: [x + 10, cy - LINE_W / 2, w - 20, LINE_W], hit: [x + 6, cy - LINE_HIT_W / 2, w - 12, LINE_HIT_W] };
+}
+// kukkakouru along the front wall, left of the entrance
+GEOM.KE = { rect: [12, 1078, DOOR[0] - 10 - 12, EDGE_LANE_W], hit: [8, 1072, DOOR[0] - 6 - 8, EDGE_LANE_W + 12] };
+// outermost kukkakourut along the left and right walls, same length as the long tables
+for (const [id, cx] of [["KR-L", EDGE_LANE_X], ["KR-R", W - EDGE_LANE_X]]) {
+  GEOM[id] = {
+    rect: [cx - EDGE_LANE_W / 2, 112, EDGE_LANE_W, 800],
+    hit: [cx - EDGE_LANE_W / 2 - 6, 108, EDGE_LANE_W + 12, 808],
+  };
+}
+
+/* ---------------- state + storage ----------------
+   Published on claude.ai: labels live in the artifact's shared database
+   (collection "sections", one document per section id), so everyone
+   with the link sees the same labels, live.
+   On GitHub Pages: labels live in a shared Google Sheet, reached through
+   the Apps Script web app at SHEETS_URL (see apps-script/Code.gs).
+   Opened as a local file with no SHEETS_URL: saved in this browser only. */
+const SHEETS_URL = ""; // paste the Apps Script web app URL here (ends in /exec)
+const SHEETS_POLL_MS = 15000;
+const STORE_KEY = "alapiha-greenhouse-v1";
+let sections = DEFAULT_SECTIONS.map(s => ({ ...s }));
+let mode = "local";       // "local" | "db" | "sheets" | "none"
+let pendingSaves = 0;
+let canWrite = true;
+let db = null;
+
+const statusEl = document.getElementById("status");
+function setStatus(state, text) { statusEl.dataset.state = state; statusEl.textContent = text; }
+
+function loadLocal() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+    if (saved && typeof saved === "object") {
+      sections.forEach(s => { if (saved[s.id]) { s.species = saved[s.id].species || ""; s.note = saved[s.id].note || ""; } });
+    }
+  } catch (e) { /* storage unavailable: use defaults */ }
+}
+
+async function persist(s) {
+  if (mode === "db") {
+    await db.doc("sections/" + s.id).set({ species: s.species, note: s.note });
+    return;
+  }
+  if (mode === "sheets") {
+    pendingSaves++;
+    try {
+      // text/plain keeps this a "simple" request, which Apps Script accepts from any site
+      const res = await fetch(SHEETS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ id: s.id, name: s.name, species: s.species, note: s.note }),
+      });
+      const out = await res.json();
+      if (!out.ok) throw new Error(out.error || "save failed");
+    } finally {
+      pendingSaves--;
+    }
+    return;
+  }
+  try {
+    const out = {};
+    sections.forEach(x => out[x.id] = { species: x.species, note: x.note });
+    localStorage.setItem(STORE_KEY, JSON.stringify(out));
+  } catch (e) { /* ignore */ }
+}
+
+function applyRemote(docs) {
+  const byDoc = {};
+  docs.forEach(d => { if (d.exists) byDoc[d.id] = d.data() || {}; });
+  sections.forEach((s, i) => {
+    const d = byDoc[s.id];
+    const def = DEFAULT_SECTIONS[i];
+    s.species = d ? String(d.species || "") : def.species;
+    s.note = d ? String(d.note || "") : def.note;
+  });
+  sections.forEach(refreshSection);
+  renderList();
+  applySearch();
+  if (!editing) renderDetail();
+}
+
+async function loadSheet() {
+  const res = await fetch(SHEETS_URL + (SHEETS_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
+  const out = await res.json();
+  if (pendingSaves) return; // don't overwrite a label that is still being saved
+  applyRemote(Object.entries(out.sections || {}).map(([id, d]) => ({ id, exists: true, data: () => d })));
+}
+
+function connectSheets() {
+  mode = "sheets";
+  setStatus("loading", "Ladataan merkintöjä…");
+  let ok = false;
+  const tick = async () => {
+    try {
+      await loadSheet();
+      if (!ok) setStatus("shared", "Merkinnät tallentuvat yhteiseen Google-taulukkoon ja näkyvät kaikille");
+      ok = true;
+    } catch (e) {
+      ok = false;
+      setStatus("offline", "Google-taulukkoon ei saada yhteyttä. Yritetään uudelleen hetken päästä…");
+    }
+  };
+  tick();
+  setInterval(() => { if (!document.hidden) tick(); }, SHEETS_POLL_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
+}
+
+async function connectStore() {
+  if ((!window.claude || typeof window.claude.use !== "function") && SHEETS_URL) {
+    connectSheets();
+    return;
+  }
+  if (!window.claude || typeof window.claude.use !== "function") {
+    mode = "local";
+    loadLocal();
+    setStatus("local", "Paikallinen kopio: merkinnät tallentuvat vain tähän selaimeen");
+    return;
+  }
+  setStatus("loading", "Ladataan merkintöjä…");
+  db = await window.claude.use("db");
+  if (!db) {
+    mode = "none"; canWrite = false;
+    setStatus("readonly", "Kirjaudu claude.ai-palveluun nähdäksesi kasvimerkinnät");
+    renderDetail();
+    return;
+  }
+  mode = "db";
+  const user = await window.claude.use("user");
+  const can = user ? await user.can("data.write") : null;
+  canWrite = can !== false;
+
+  const timer = setTimeout(() => setStatus("offline", "Tallennettuja merkintöjä ei vielä tavoiteta. Näytetään tähän mennessä ladatut."), 10000);
+  db.collection("sections").onSnapshot(snap => {
+    applyRemote(snap.docs);
+    if (!snap.metadata.fromCache) {
+      clearTimeout(timer);
+      setStatus(canWrite ? "shared" : "readonly",
+        canWrite ? "Merkinnät näkyvät kaikille, jotka avaavat tämän sivun" : "Vain katselu: pyydä omistajalta muokkausoikeus, jos haluat muuttaa merkintöjä");
+    }
+  }, err => {
+    clearTimeout(timer);
+    setStatus("offline", "Tallennettuja merkintöjä ei voitu ladata. Avaa sivu uudelleen ja yritä uudestaan.");
+  });
+  renderDetail();
+}
+
+const byId = id => sections.find(s => s.id === id);
+let selectedId = null;
+let editing = false;
+const TAB_KEY = "alapiha-greenhouse-tab";
+let activeTab = "all";
+try { const t = localStorage.getItem(TAB_KEY); if (["all", "table", "lane", "plants"].includes(t)) activeTab = t; } catch (e) { /* ignore */ }
+
+/* ---------------- SVG rendering ---------------- */
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("map");
+const el = (tag, attrs = {}, parent) => {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+
+function truncate(str, max) { return str.length > max ? str.slice(0, max - 1) + "…" : str; }
+
+function drawStatic() {
+  el("rect", { x: 0, y: 0, width: W, height: H, class: "floor" }, svg);
+  // walls with an entrance gap in the bottom wall
+  el("path", { class: "wall", d: `M${DOOR[0]} ${H} H0 V0 H${W} V${H} H${DOOR[1]}` }, svg);
+  el("path", { class: "entrance-arrow", d: `M${W / 2} ${H + 45} V${H + 12} M${W / 2 - 11} ${H + 24} L${W / 2} ${H + 12} L${W / 2 + 11} ${H + 24}` }, svg);
+  el("text", { x: W / 2, y: H + 70, class: "entrance-text" }, svg).textContent = "Sisäänkäynti";
+}
+
+const nodes = {}; // id -> { g, label }
+
+function drawBadge(parent, x, y, text) {
+  const b = el("g", { class: "badge" }, parent);
+  el("circle", { cx: x, cy: y, r: 15 }, b);
+  el("text", { x, y }, b).textContent = text;
+  return b;
+}
+
+function drawSection(s) {
+  const g = GEOM[s.id];
+  const grp = el("g", { class: `sec ${s.kind}${s.part ? " " + s.part : ""}`, "data-id": s.id, tabindex: 0, role: "button" }, svg);
+  let label = null;
+
+  if (s.kind === "table") {
+    const [x, y, w, h] = g.rect;
+    if (s.part === "side") {
+      // thin strip: a wider invisible area makes it easy to tap
+      const pad = 3;
+      el("rect", { class: "side-hit", x: w < h ? x - pad : x, y: w < h ? y : y - pad, width: w < h ? w + pad * 2 : w, height: w < h ? h : h + pad * 2 }, grp);
+    }
+    el("rect", { class: "shape", x, y, width: w, height: h, rx: g.rx ?? 6 }, grp);
+    if (g.label) {
+      const [lx, ly] = g.label;
+      label = el("text", { class: "sec-label", x: lx, y: ly, transform: g.rotate ? `rotate(-90 ${lx} ${ly})` : "" }, grp);
+    }
+  } else if (s.kind === "lane") {
+    const [hx, hy, hw, hh] = g.hit;
+    el("rect", { class: "lane-hit", x: hx, y: hy, width: hw, height: hh }, grp);
+    const [x, y, w, h] = g.rect;
+    el("rect", { class: "shape", x, y, width: w, height: h, rx: Math.min(w, h) / 2 }, grp);
+  } else {
+    const xs = g.pts.map(p => p[0]), ys = g.pts.map(p => p[1]);
+    const pad = g.r + 7;
+    const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
+    el("rect", { class: "hit", x: x0, y: y0, width: Math.max(...xs) - x0 + pad, height: Math.max(...ys) - y0 + pad, rx: 14 }, grp);
+    for (const [cx, cy] of g.pts) {
+      el("circle", { class: "tap", cx, cy, r: g.r + 3 }, grp);
+      el("circle", { class: "pot", cx, cy, r: g.r }, grp);
+    }
+    if (g.label) label = el("text", { class: "sec-label", x: g.label[0], y: g.label[1] }, grp);
+  }
+
+  if (g.badge) {
+    const b = drawBadge(grp, g.badge[0], g.badge[1], s.id);
+    // bottom row: badge sits left of its label
+    if (s.id === "H5") { b.setAttribute("transform", "translate(-150 0)"); label.setAttribute("x", g.label[0] + 15); }
+  }
+
+  nodes[s.id] = { g: grp, label };
+  bindSection(grp, s.id);
+}
+
+function drawSections() {
+  // tables, then the planting lines on top of them, then hanging plants on top
+  sections.filter(s => s.kind === "table").forEach(drawSection);
+
+  // table outline and code badge on top of the sections (not clickable)
+  for (const t of TABLES) {
+    const [x, y, w, h] = t.rect;
+    const frame = el("g", { class: "frame" }, svg);
+    el("rect", { class: "frame-outline", x, y, width: w, height: h, rx: 4 }, frame);
+    // long tables: badge above the back end; back-wall tables: badge at their outer end
+    const outerLeft = x + w / 2 < W / 2;
+    drawBadge(frame, t.dir === "v" ? x + w / 2 : (outerLeft ? x - 18 : x + w + 18), t.dir === "v" ? FRAME_BADGE_Y : y + h / 2, t.id);
+  }
+
+  sections.filter(s => s.kind === "lane").forEach(drawSection);
+
+  // line numbers under each lined table (not clickable)
+  for (const s of sections.filter(x => x.kind === "lane")) {
+    if (!GEOM[s.id].num) continue;
+    const [nx, ny] = GEOM[s.id].num;
+    el("text", { class: "lane-num", x: nx, y: ny }, svg).textContent = s.id.split("-")[1];
+  }
+
+  sections.filter(s => s.kind === "plants").forEach(drawSection);
+}
+
+function refreshSection(s) {
+  const n = nodes[s.id];
+  n.g.classList.toggle("empty", !s.species);
+  n.g.setAttribute("aria-label", `${s.id}, ${s.name}: ${s.species || "ei merkitty"}`);
+  if (n.label) {
+    const max = s.kind === "lane" ? 36 : s.kind === "table" ? 18 : 30;
+    n.label.textContent = s.species ? truncate(s.species, max) : "";
+    n.label.classList.toggle("empty", !s.species);
+  }
+}
+
+/* ---------------- interaction ---------------- */
+const tip = document.getElementById("tip");
+const wrap = document.querySelector(".map-wrap");
+
+function setHighlight(id, on) {
+  nodes[id]?.g.classList.toggle("hl", on);
+  document.querySelector(`#list button[data-id="${id}"]`)?.classList.toggle("hl", on);
+}
+
+function bindSection(grp, id) {
+  grp.addEventListener("pointerenter", e => { setHighlight(id, true); if (e.pointerType === "mouse") showTip(id, e); });
+  grp.addEventListener("pointermove", e => { if (e.pointerType === "mouse") moveTip(e); });
+  grp.addEventListener("pointerleave", () => { setHighlight(id, false); tip.classList.remove("show"); });
+  grp.addEventListener("click", () => select(id));
+  grp.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(id); } });
+  grp.addEventListener("focus", () => setHighlight(id, true));
+  grp.addEventListener("blur", () => setHighlight(id, false));
+}
+
+function showTip(id, e) {
+  const s = byId(id);
+  tip.innerHTML = "";
+  const b = document.createElement("b"); b.textContent = `${s.id} · ${s.name}`;
+  tip.append(b, document.createTextNode(s.species || "Kasvia ei ole vielä merkitty"));
+  tip.classList.add("show");
+  moveTip(e);
+}
+function moveTip(e) {
+  const r = wrap.getBoundingClientRect();
+  tip.style.left = (e.clientX - r.left) + "px";
+  tip.style.top = (e.clientY - r.top) + "px";
+}
+
+function select(id) {
+  selectedId = id;
+  editing = false;
+  const kind = byId(id).kind;
+  if (activeTab !== "all" && kind !== activeTab && !search.value.trim()) setTab(kind, false);
+  Object.entries(nodes).forEach(([k, n]) => n.g.classList.toggle("selected", k === id));
+  renderDetail();
+  openPopup(id);
+}
+
+/* ---------------- pop-up: type the plant straight in ---------------- */
+const pop = document.getElementById("pop");
+const popForm = document.getElementById("pop-form");
+const popSpecies = document.getElementById("pop-species");
+const popNote = document.getElementById("pop-note");
+let popId = null;
+
+function openPopup(id) {
+  const s = byId(id);
+  popId = id;
+  tip.classList.remove("show");
+  document.getElementById("pop-code").textContent = s.id;
+  document.getElementById("pop-title").textContent = s.name;
+  const kindName = s.floor ? "lattia" : s.part === "side" ? "pöydän sivukaista" : { table: "pöydän osa", lane: "kukkakouru", plants: "amppelit" }[s.kind];
+  document.getElementById("pop-kind").textContent = kindName;
+
+  pop.classList.toggle("readonly", !canWrite);
+  document.getElementById("pop-view").textContent = s.species || "Kasvia ei ole vielä merkitty";
+  document.getElementById("pop-view").classList.toggle("none", !s.species);
+  document.getElementById("pop-view-note").textContent = s.note;
+  popSpecies.value = s.species;
+  popNote.value = s.note;
+  document.getElementById("pop-clear").hidden = !s.species && !s.note;
+
+  pop.hidden = false;
+  requestAnimationFrame(() => (canWrite ? popSpecies : document.getElementById("pop-close")).focus());
+}
+
+function closePopup() {
+  if (pop.hidden) return;
+  pop.hidden = true;
+  const id = popId; popId = null;
+  nodes[id]?.g.focus({ preventScroll: true });
+}
+
+popForm.addEventListener("submit", e => {
+  e.preventDefault();
+  const s = popId && byId(popId);
+  if (!s) { closePopup(); return; }
+  s.species = popSpecies.value.trim();
+  s.note = popNote.value.trim();
+  closePopup();
+  commit(s);
+});
+document.getElementById("pop-cancel").onclick = closePopup;
+document.getElementById("pop-close").onclick = closePopup;
+document.getElementById("pop-clear").onclick = () => {
+  const s = popId && byId(popId);
+  if (!s) { closePopup(); return; }
+  s.species = ""; s.note = "";
+  closePopup();
+  commit(s);
+};
+pop.addEventListener("click", e => { if (e.target === pop) closePopup(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePopup(); });
+// keep keyboard focus inside the pop-up while it is open
+pop.addEventListener("keydown", e => {
+  if (e.key !== "Tab") return;
+  const f = [...pop.querySelectorAll("button, input, textarea")].filter(x => !x.hidden && x.offsetParent !== null);
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+
+/* ---------------- detail panel ---------------- */
+const detail = document.getElementById("detail");
+
+function renderDetail() {
+  detail.innerHTML = "";
+  const h = document.createElement("h2"); h.textContent = "Valittu";
+  detail.appendChild(h);
+
+  if (!selectedId) {
+    const p = document.createElement("p"); p.className = "hint";
+    p.textContent = TABS.find(t => t.kind === activeTab).hint;
+    detail.appendChild(p);
+    return;
+  }
+  const s = byId(selectedId);
+  const title = document.createElement("div"); title.className = "detail-title";
+  const code = document.createElement("span"); code.className = "code"; code.textContent = s.id;
+  const h3 = document.createElement("h3"); h3.textContent = s.name;
+  title.append(code, h3);
+  detail.appendChild(title);
+
+  const sp = document.createElement("div");
+  sp.className = "species" + (s.species ? "" : " none");
+  sp.textContent = s.species || "Kasvia ei ole vielä merkitty";
+  detail.appendChild(sp);
+  if (s.note) { const n = document.createElement("p"); n.className = "note"; n.textContent = s.note; detail.appendChild(n); }
+  if (!canWrite) return;
+  const btns = document.createElement("div"); btns.className = "btns";
+  const edit = document.createElement("button"); edit.className = "primary";
+  edit.textContent = s.species ? "Muokkaa kasvia" : "Lisää kasvi";
+  edit.onclick = () => openPopup(s.id);
+  btns.appendChild(edit);
+  detail.appendChild(btns);
+}
+
+async function commit(s) {
+  try {
+    await persist(s);
+  } catch (e) {
+    if (e && e.code === "invalid_argument") {
+      canWrite = false;
+      setStatus("readonly", "Vain katselu: pyydä omistajalta muokkausoikeus, jos haluat muuttaa merkintöjä");
+    } else {
+      setStatus("offline", "Merkintää ei tallennettu. Tarkista verkkoyhteys ja yritä uudelleen.");
+    }
+  }
+  refreshSection(s);
+  renderList();
+  applySearch();
+  editing = false;
+  renderDetail();
+}
+
+/* The section list was removed (hovering the map shows each label);
+   this now only refreshes the view buttons and their counts. */
+function renderList() {
+  renderTabs();
+}
+
+/* ---------------- search ----------------
+   Searching looks through all three tabs at once. */
+const search = document.getElementById("search");
+function applySearch() {
+  const q = search.value.trim().toLowerCase();
+  svg.classList.toggle("searching", !!q);
+  for (const s of sections) {
+    const hit = !q || [s.species, s.note, s.name, s.id].some(v => v.toLowerCase().includes(q));
+    nodes[s.id].g.classList.toggle("match", !!q && hit);
+  }
+}
+search.addEventListener("input", () => { renderList(); applySearch(); });
+
+/* ---------------- tabs ---------------- */
+const tabsEl = document.getElementById("tabs");
+function renderTabs() {
+  tabsEl.innerHTML = "";
+  for (const t of TABS) {
+    const b = document.createElement("button");
+    b.type = "button"; b.id = "tab-" + t.kind; b.className = "kind-" + t.kind;
+    b.setAttribute("aria-pressed", String(t.kind === activeTab));
+    const ofKind = t.kind === "all" ? sections : sections.filter(s => s.kind === t.kind);
+    const labelled = ofKind.filter(s => s.species).length;
+    const total = ofKind.length;
+    const dot = document.createElement("i"); dot.className = "kdot"; dot.setAttribute("aria-hidden", "true");
+    b.appendChild(dot);
+    const name = document.createElement("span"); name.textContent = t.label;
+    const count = document.createElement("span"); count.className = "count"; count.textContent = `${labelled}/${total}`;
+    count.title = `${labelled}/${total} merkitty`;
+    b.append(name, count);
+    b.onclick = () => setTab(t.kind, true);
+    tabsEl.appendChild(b);
+  }
+}
+function setTab(kind, clearSelection) {
+  activeTab = kind;
+  svg.dataset.tab = kind;
+  try { localStorage.setItem(TAB_KEY, kind); } catch (e) { /* ignore */ }
+  if (clearSelection && kind !== "all" && selectedId && byId(selectedId).kind !== kind) {
+    selectedId = null; editing = false;
+    Object.values(nodes).forEach(n => n.g.classList.remove("selected"));
+  }
+  renderList();
+  applySearch();
+  renderDetail();
+}
+
+/* ---------------- light / dark toggle ----------------
+   Follows the device setting until the viewer picks one; the choice
+   is remembered in this browser. */
+const THEME_KEY = "alapiha-greenhouse-theme";
+const themeBtn = document.getElementById("theme-toggle");
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+function currentTheme() {
+  const set = document.documentElement.getAttribute("data-theme");
+  return set === "dark" || set === "light" ? set : (darkQuery.matches ? "dark" : "light");
+}
+function syncThemeButton() {
+  const dark = currentTheme() === "dark";
+  themeBtn.classList.toggle("is-dark", dark);
+  themeBtn.querySelector(".theme-label").textContent = dark ? "Vaalea" : "Tumma";
+  themeBtn.setAttribute("aria-label", dark ? "Vaihda vaaleaan tilaan" : "Vaihda tummaan tilaan");
+}
+try {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "dark" || saved === "light") document.documentElement.setAttribute("data-theme", saved);
+} catch (e) { /* storage unavailable: follow the device */ }
+themeBtn.addEventListener("click", () => {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* ignore */ }
+  syncThemeButton();
+});
+darkQuery.addEventListener("change", syncThemeButton);
+new MutationObserver(syncThemeButton).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+syncThemeButton();
+
+/* ---------------- init ---------------- */
+document.documentElement.lang = "fi";
+drawStatic();
+drawSections();
+sections.forEach(refreshSection);
+setTab(activeTab, false);
+connectStore().then(() => { if (mode === "local") { sections.forEach(refreshSection); renderList(); renderDetail(); } });
+</script>
+</body>
+</html>
