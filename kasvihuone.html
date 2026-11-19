@@ -364,7 +364,6 @@
   <div class="head-text">
     <a class="back" id="back" href="index.html">← Takaisin pihalle</a>
     <h1 id="page-title">Kasvihuoneen kasvikartta</h1>
-    <p>Valitse painikkeista, mitä kartalla näytetään, ja napauta kohtaa nähdäksesi, mitä siinä kasvaa.</p>
     <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
   </div>
   <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Vaihda tummaan tilaan">
@@ -1080,7 +1079,8 @@ const detail = document.getElementById("detail");
 
 function renderDetail() {
   detail.innerHTML = "";
-  const h = document.createElement("h2"); h.textContent = "Valittu";
+  // instructions until a spot is chosen, then that spot's details
+  const h = document.createElement("h2"); h.textContent = selectedId ? "Valittu" : "Ohjeet";
   detail.appendChild(h);
 
   if (!selectedId) {
