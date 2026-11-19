@@ -347,6 +347,16 @@
   .sw.p { width: 14px; height: 14px; border-radius: 50%; background: var(--plant); border-color: var(--plant-stroke); }
   .sw.e { background: var(--table-empty); border-style: dashed; }
   .sw.l { width: 6px; height: 18px; border-radius: 3px; border-width: 1.5px; background: var(--plant); border-color: var(--plant-stroke); }
+  /* footer */
+  /* keep the footer at the bottom of the screen even when the page is short */
+  body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+  body > header, body > nav, body > main, body > footer { width: 100%; }
+  .site-footer {
+    margin-top: auto; background: #272727; color: #e6e6e6; text-align: center;
+    padding: 22px max(16px, env(safe-area-inset-left, 0px)) calc(22px + env(safe-area-inset-bottom, 0px));
+    font-size: .9rem; letter-spacing: .02em;
+  }
+  .site-footer b { color: #fff; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -395,6 +405,10 @@
     <div class="card" id="detail" aria-live="polite"></div>
   </aside>
 </main>
+
+<footer class="site-footer">
+  <b>Alapihan Puutarha</b> Kasvihuonekartta – oikeudet muutoksiin pidätetään.
+</footer>
 
 <div class="pop-backdrop" id="pop" hidden>
   <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pop-title">

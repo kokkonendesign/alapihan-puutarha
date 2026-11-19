@@ -330,6 +330,16 @@
   .chips button span { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .chips button:hover { border-color: var(--pink-strong); background: var(--pink-soft); }
   .chips button.filled span { color: var(--ink); font-weight: 600; }
+  /* footer */
+  /* keep the footer at the bottom of the screen even when the page is short */
+  body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+  body > header, body > nav, body > main, body > footer { width: 100%; }
+  .site-footer {
+    margin-top: auto; background: #272727; color: #e6e6e6; text-align: center;
+    padding: 22px max(16px, env(safe-area-inset-left, 0px)) calc(22px + env(safe-area-inset-bottom, 0px));
+    font-size: .9rem; letter-spacing: .02em;
+  }
+  .site-footer b { color: #fff; font-weight: 500; }
 </style>
 <header>
   <div class="head-text">
@@ -381,6 +391,10 @@
     </div>
   </aside>
 </main>
+
+<footer class="site-footer">
+  <b>Alapihan Puutarha</b> Kasvihuonekartta – oikeudet muutoksiin pidätetään.
+</footer>
 
 <div class="pop-backdrop" id="ask" hidden>
   <div class="pop" role="alertdialog" aria-modal="true" aria-labelledby="ask-title" aria-describedby="ask-text">
