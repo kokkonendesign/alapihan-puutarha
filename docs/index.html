@@ -198,6 +198,7 @@
   .yard-wrap { background: var(--grass); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; position: relative; }
   svg.yard { display: block; width: 100%; height: auto; max-height: calc(100vh - 140px); margin: 0 auto; touch-action: manipulation; }
   svg.yard text { font-family: inherit; }
+  svg.yard { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 
   /* illustration */
   .grass { fill: var(--grass); }
@@ -257,6 +258,26 @@
   .kassa .sign rect { fill: var(--surface); stroke: var(--outline); stroke-width: 2; }
   .kassa .sign text { fill: var(--ink); font-size: 12px; font-weight: 800; text-anchor: middle; dominant-baseline: central; letter-spacing: .04em; }
 
+  /* editing the outdoor tables */
+  .edit-bar { background: var(--surface); border-bottom: 1px solid var(--line); padding: 8px 10px; }
+  .edit-start { font-weight: 600; }
+  .edit-tools { display: grid; gap: 8px; }
+  .edit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .edit-hint { flex: 1 1 200px; font-size: .85rem; color: var(--muted); }
+  .sel-tools { padding-top: 8px; border-top: 1px dashed var(--line); }
+  .sel-tools b { margin-right: 4px; }
+  .edit-bar button { padding: 8px 12px; min-height: 40px; }
+  .edit-bar .danger { color: var(--select); }
+  .edit-bar button:disabled { opacity: .45; cursor: not-allowed; }
+  svg.yard.editing { touch-action: none; }
+  svg.yard.editing .ot { cursor: grab; }
+  svg.yard.editing .ot.dragging { cursor: grabbing; }
+  svg.yard.editing .ot .top { stroke-dasharray: 5 3; }
+  svg.yard.editing .ot.sel .top { fill: var(--gh-hover-2); stroke: var(--select); stroke-width: 4; stroke-dasharray: none; }
+  svg.yard.editing .ot.sel .num circle { fill: var(--accent); }
+  svg.yard.editing .gh { cursor: default; }
+  svg.yard.editing .gh:hover .lift { transform: none; }
+
   /* panel */
   .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .quick a {
@@ -290,6 +311,24 @@
 
 <main>
   <section class="yard-wrap" aria-label="Piha ylhäältä katsottuna">
+    <div class="edit-bar" id="edit-bar">
+      <button type="button" id="edit-toggle" class="edit-start">✎ Muokkaa ulkopöytiä</button>
+      <div class="edit-tools" id="edit-tools" hidden>
+        <div class="edit-row">
+          <button type="button" id="t-add">+ Lisää pöytä</button>
+          <span class="edit-hint" id="edit-hint">Vedä pöytää hiirellä tai sormella. Napauta pöytää, niin voit kääntää, pidentää tai poistaa sen.</span>
+          <button type="button" id="t-done" class="primary">Valmis</button>
+        </div>
+        <div class="edit-row sel-tools" id="sel-tools">
+          <b id="sel-name"></b>
+          <button type="button" id="t-rotl" aria-label="Käännä vastapäivään">↺ Käännä</button>
+          <button type="button" id="t-rotr" aria-label="Käännä myötäpäivään">Käännä ↻</button>
+          <button type="button" id="t-short" aria-label="Lyhennä pöytää">− Lyhyempi</button>
+          <button type="button" id="t-long" aria-label="Pidennä pöytää">+ Pidempi</button>
+          <button type="button" id="t-del" class="danger">Poista</button>
+        </div>
+      </div>
+    </div>
     <svg class="yard" id="yard" viewBox="-120 425 900 985" role="group" aria-label="Alapihan Puutarhan piha: neljä kasvihuonetta, ulkopöydät ja lampi"></svg>
     <div class="tip" id="tip" role="presentation"></div>
   </section>
@@ -305,6 +344,27 @@
     </div>
   </aside>
 </main>
+
+<div class="pop-backdrop" id="pinpop" hidden>
+  <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pinpop-title">
+    <div class="pop-head">
+      <div class="pop-titles">
+        <span class="pop-kind">ulkopöytien muokkaus</span>
+        <h3 id="pinpop-title">Perheen PIN-koodi</h3>
+      </div>
+      <button type="button" class="pop-x" id="pinpop-close" aria-label="Sulje">×</button>
+    </div>
+    <form id="pinpop-form" autocomplete="off">
+      <label for="pinpop-pin">Kirjoita koodi, niin voit siirtää ja lisätä pöytiä</label>
+      <input type="password" id="pinpop-pin" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
+      <p class="pop-err" id="pinpop-err" role="alert" hidden></p>
+      <div class="btns">
+        <button type="submit" class="primary">Jatka</button>
+        <button type="button" id="pinpop-cancel">Peruuta</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div class="pop-backdrop" id="pop" hidden>
   <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
@@ -372,19 +432,23 @@ const HOUSES = [
 ];
 const HUT = [-57, 670, 42, 132];       // small storage shed by greenhouse 1
 const KASSA = [548, 1048, 56, 44];      // cashier
-const TABLES = [
-  { no: "1", parts: [[266, 884, 70, 14]] },
-  { no: "2", parts: [[334, 690, 15, 170]] },
-  { no: "4", parts: [[402, 760, 15, 185]] },
-  { no: "5", parts: [[425, 999, 112, 14]] },
-  { no: "6", parts: [[592, 770, 15, 175]] },
-  { no: "7", parts: [[640, 1035, 14, 62], [612, 1083, 42, 14]] },
-  { no: "8", parts: [[180, 884, 52, 14]] },
-  // between greenhouse 2 and the lake: same size as table 4, lying along the sandy road
-  { no: "3", parts: [[122.5, 949.5, 185, 15]], rotate: [15, 215, 957] },
+/* Outdoor tables as drawn by default. x, y = centre; r = turn in degrees;
+   parts = rectangles around the centre [dx, dy, width, height];
+   badge = where the number sits, measured in the table's own (turned) frame.
+   Moved, added and removed tables are saved to the sheet (rows "L-P<no>")
+   and override these defaults – see layoutTables(). */
+const DEFAULT_TABLES = [
+  { no: "1", x: 301, y: 891, r: 0, parts: [[-35, -7, 70, 14]] },
+  { no: "2", x: 341.5, y: 775, r: 0, parts: [[-7.5, -85, 15, 170]] },
+  // between greenhouse 2 and the lake, lying along the sandy road
+  { no: "3", x: 215, y: 957, r: 15, parts: [[-92.5, -7.5, 185, 15]], badge: [0, 32] },
+  { no: "4", x: 409.5, y: 852.5, r: 0, parts: [[-7.5, -92.5, 15, 185]] },
+  { no: "5", x: 481, y: 1006, r: 0, parts: [[-56, -7, 112, 14]] },
+  { no: "6", x: 599.5, y: 857.5, r: 0, parts: [[-7.5, -87.5, 15, 175]] },
+  { no: "7", x: 633, y: 1066, r: 0, parts: [[7, -31, 14, 62], [-21, 17, 42, 14]], badge: [35, 0] },   // L-shaped
+  { no: "8", x: 206, y: 891, r: 0, parts: [[-26, -7, 52, 14]] },
 ];
-/* where each table's number badge sits */
-const BADGE = { "1": [301, 870], "2": [341, 674], "4": [409, 744], "5": [481, 985], "6": [599, 754], "7": [668, 1066], "8": [206, 870], "3": [205, 992] };
+const NEW_TABLE = { x: 373, y: 610, r: 0, len: 90 };   // where "Lisää pöytä" puts a new table (free gravel between greenhouses 2 and 3)
 /* trees (local frame): x, y, size */
 const TREES = [
   [-92, 470, 34], [-60, 450, 26], [-98, 560, 30], [-96, 640, 24], [-100, 860, 30], [-70, 905, 22], [-98, 960, 26],
@@ -529,24 +593,63 @@ function drawHouse(hs) {
   // entrance arrow below the door
   if (!hs.noArrow) el("path", { class: "arrow", d: `M${x + w / 2},${y + h + 36} v-20 m-7,7 l7,-7 l7,7` }, g);
 
-  const go = () => { location.href = "kasvihuone.html?talo=" + hs.no; };
+  const go = () => { if (!editing) location.href = "kasvihuone.html?talo=" + hs.no; };
   g.addEventListener("click", go);
   g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
-  g.addEventListener("pointermove", e => showTip(e, "Kasvihuone " + hs.no, "Napauta, niin pääset sisälle"));
+  g.addEventListener("pointermove", e => { if (!editing) showTip(e, "Kasvihuone " + hs.no, "Napauta, niin pääset sisälle"); });
   g.addEventListener("pointerleave", hideTip);
   nodes["house" + hs.no] = { g, count };
 }
 
+const layoutKey = no => "L-P" + no;
+const tablesLayer = el("g", { class: "tables" }, null);
+
+/* defaults + saved layout rows → the tables to draw */
+function layoutTables() {
+  const out = new Map(DEFAULT_TABLES.map(t => [t.no, { ...t, parts: t.parts.map(p => p.slice()) }]));
+  for (const [id, d] of Object.entries(labels)) {
+    const m = /^L-P(\d{1,3})$/.exec(id);
+    if (!m) continue;
+    let g;
+    try { g = JSON.parse(d.note || "{}"); } catch (e) { continue; }
+    const no = m[1];
+    if (g.del) { out.delete(no); continue; }
+    const t = out.get(no) || { no, x: NEW_TABLE.x, y: NEW_TABLE.y, r: 0, parts: [[-NEW_TABLE.len / 2, -7.5, NEW_TABLE.len, 15]] };
+    if (Number.isFinite(g.x)) t.x = g.x;
+    if (Number.isFinite(g.y)) t.y = g.y;
+    if (Number.isFinite(g.r)) t.r = g.r;
+    if (Number.isFinite(g.len) && t.parts.length === 1) setLength(t, g.len);
+    out.set(no, t);
+  }
+  return [...out.values()].sort((p, q) => p.no - q.no);
+}
+function lengthOf(t) { const [, , w, h] = t.parts[0]; return Math.max(w, h); }
+function setLength(t, len) {
+  const [, , w, h] = t.parts[0];
+  t.parts[0] = w >= h ? [-len / 2, -h / 2, len, h] : [-w / 2, -len / 2, w, len];
+}
+function badgeOffset(t) {
+  let b = t.badge;
+  if (!b) { const [, , w, h] = t.parts[0]; b = w >= h ? [0, -(h / 2 + 14)] : [0, -(h / 2 + 16)]; }
+  const a = t.r * Math.PI / 180;   // turn with the table, but keep the number upright
+  return [b[0] * Math.cos(a) - b[1] * Math.sin(a), b[0] * Math.sin(a) + b[1] * Math.cos(a)];
+}
+
+let tables = layoutTables();
+function renderTables() {
+  if (drag) return;
+  tables = layoutTables();
+  tablesLayer.textContent = "";
+  tables.forEach(drawTable);
+  if (selNo && !tables.some(t => t.no === selNo)) selectTable(null);
+  else if (selNo) selectTable(selNo);
+}
+
 function drawTable(t) {
-  const g = el("g", { class: "ot", tabindex: 0, role: "button", "data-no": t.no }, svg);
-  // a turned table draws its top inside a rotated group; the number badge stays upright
-  const body = t.rotate ? el("g", { transform: `rotate(${t.rotate.join(" ")})` }, g) : g;
-  t.parts.forEach(([x, y, w, h]) => {
-    el("rect", { class: "hit", x: x - 12, y: y - 12, width: w + 24, height: h + 24 }, body);
-  });
-  t.parts.forEach(([x, y, w, h]) => {
-    el("rect", { class: "shadow", x: x + 4, y: y + 4, width: w, height: h, rx: 3 }, body);
-  });
+  const g = el("g", { class: "ot", tabindex: 0, role: "button", "data-no": t.no, transform: `translate(${t.x} ${t.y})` }, tablesLayer);
+  const body = el("g", { class: "turn", transform: `rotate(${t.r})` }, g);
+  t.parts.forEach(([x, y, w, h]) => el("rect", { class: "hit", x: x - 12, y: y - 12, width: w + 24, height: h + 24 }, body));
+  t.parts.forEach(([x, y, w, h]) => el("rect", { class: "shadow", x: x + 4, y: y + 4, width: w, height: h, rx: 3 }, body));
   const pots = el("g", {}, null);
   t.parts.forEach(([x, y, w, h]) => {
     el("rect", { class: "top", x, y, width: w, height: h, rx: 3 }, body);
@@ -561,14 +664,19 @@ function drawTable(t) {
     }
   });
   body.appendChild(pots);
-  const [bx, by] = BADGE[t.no];
+  const [bx, by] = badgeOffset(t);
   const num = el("g", { class: "num" }, g);
-  el("circle", { cx: bx, cy: by, r: 13 }, num);
-  el("text", { x: bx, y: by }, num).textContent = t.no;
+  el("circle", { cx: f(bx), cy: f(by), r: 13 }, num);
+  el("text", { x: f(bx), y: f(by) }, num).textContent = t.no;
 
-  g.addEventListener("click", () => openPopup(t.no));
-  g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPopup(t.no); } });
+  g.addEventListener("click", () => { if (!editing) openPopup(t.no); });
+  g.addEventListener("keydown", e => {
+    if (editing) { nudge(e, t.no); return; }
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPopup(t.no); }
+  });
+  g.addEventListener("pointerdown", e => startDrag(e, t.no, g));
   g.addEventListener("pointermove", e => {
+    if (editing) return;
     const d = labels[tableId(t.no)];
     showTip(e, tableName(t.no), d && d.species ? d.species : "Ei vielä merkitty – napauta ja kirjoita kasvi");
   });
@@ -599,15 +707,6 @@ HOUSES.forEach(hs => {
   a.append(b, s);
   quick.appendChild(a);
 });
-TABLES.slice().sort((a, b) => a.no - b.no).forEach(t => {
-  const btn = document.createElement("button");
-  btn.type = "button"; btn.dataset.no = t.no;
-  const b = document.createElement("b"); b.textContent = t.no;
-  const s = document.createElement("span");
-  btn.append(b, s);
-  btn.onclick = () => openPopup(t.no);
-  chips.appendChild(btn);
-});
 
 function refresh() {
   HOUSES.forEach(hs => {
@@ -616,13 +715,20 @@ function refresh() {
     nodes["house" + hs.no].count.textContent = txt;
     quick.querySelector(`[data-count="${hs.no}"]`).textContent = txt;
   });
-  TABLES.forEach(t => {
+  renderTables();
+  chips.textContent = "";
+  tables.forEach(t => {
     const d = labels[tableId(t.no)] || {};
-    nodes["table" + t.no].pots.style.display = d.species ? "" : "none";
-    const chip = chips.querySelector(`[data-no="${t.no}"]`);
-    chip.classList.toggle("filled", !!d.species);
-    chip.querySelector("span").textContent = d.species || "tyhjä";
-    chip.setAttribute("aria-label", tableName(t.no) + ": " + (d.species || "ei merkitty"));
+    if (nodes["table" + t.no]) nodes["table" + t.no].pots.style.display = d.species ? "" : "none";
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.dataset.no = t.no;
+    btn.classList.toggle("filled", !!d.species);
+    const b = document.createElement("b"); b.textContent = t.no;
+    const sp = document.createElement("span"); sp.textContent = d.species || "tyhjä";
+    btn.append(b, sp);
+    btn.setAttribute("aria-label", tableName(t.no) + ": " + (d.species || "ei merkitty"));
+    btn.onclick = () => editing ? selectTable(t.no) : openPopup(t.no);
+    chips.appendChild(btn);
   });
 }
 
@@ -632,11 +738,13 @@ function setStatus(state, text) { statusEl.dataset.state = state; statusEl.textC
 function getPin() { try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
 function setPin(v) { try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
 let pendingSaves = 0;
+let writeSeq = 0;          // bumped by every save, so an older sheet read can't undo it
 
 async function loadSheet() {
+  const seq = writeSeq;
   const res = await fetch(SHEETS_URL + "?t=" + Date.now());
   const out = await res.json();
-  if (pendingSaves) return;
+  if (pendingSaves || drag || seq !== writeSeq) return;   // don't jump a table back while it is being moved or saved
   labels = out.sections || {};
   refresh();
 }
@@ -664,19 +772,19 @@ function connect() {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
 }
 
-async function save(no, species, note, pin) {
-  const id = tableId(no);
+/* Save one row of the shared sheet: a plant label (P<no>) or a table position (L-P<no>). */
+async function postRow(id, name, species, note, pin) {
   if (mode !== "sheets") {
     labels[id] = { species, note };
     try { localStorage.setItem(LOCAL_KEY, JSON.stringify(labels)); } catch (e) { /* ignore */ }
     return;
   }
-  pendingSaves++;
+  pendingSaves++; writeSeq++;
   try {
     const res = await fetch(SHEETS_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ id, name: tableName(no) + " (piha)", species, note, pin }),
+      body: JSON.stringify({ id, name, species, note, pin }),
     });
     const out = await res.json();
     if (!out.ok) { const err = new Error(out.error || "save failed"); if (out.error === "bad pin") err.code = "bad_pin"; throw err; }
@@ -685,6 +793,7 @@ async function save(no, species, note, pin) {
     pendingSaves--;
   }
 }
+const save = (no, species, note, pin) => postRow(tableId(no), tableName(no) + " (piha)", species, note, pin);
 
 /* ---------------- pop-up ---------------- */
 const pop = document.getElementById("pop");
@@ -716,14 +825,14 @@ function openPopup(no) {
   popPin.value = "";
   showPopError("");
   setPopBusy(false);
-  nodes["table" + no].g.classList.add("selected");
+  nodes["table" + no]?.g.classList.add("selected");
   pop.hidden = false;
   requestAnimationFrame(() => popSpecies.focus());
 }
 function closePopup() {
   if (pop.hidden || popBusy) return;
   pop.hidden = true;
-  if (popNo) nodes["table" + popNo].g.classList.remove("selected");
+  if (popNo) nodes["table" + popNo]?.g.classList.remove("selected");
   popNo = null;
   if (popReturn && popReturn.focus) popReturn.focus({ preventScroll: true });
 }
@@ -793,12 +902,188 @@ darkQuery.addEventListener("change", syncThemeButton);
 new MutationObserver(syncThemeButton).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 syncThemeButton();
 
+/* ---------------- editing the outdoor tables ----------------
+   "Muokkaa ulkopöytiä" turns on edit mode: drag a table with the mouse or a
+   finger, tap it to turn, lengthen or remove it, or add a new one. Each change
+   is saved straight away as that table's "L-P<no>" row in the shared sheet
+   (the same family PIN as plant labels), so everyone sees the new layout. */
+let editing = false, selNo = null, drag = null;
+const editToggle = document.getElementById("edit-toggle");
+const editTools = document.getElementById("edit-tools");
+const selTools = document.getElementById("sel-tools");
+const ROT_STEP = 15, LEN_STEP = 15, LEN_MIN = 30, LEN_MAX = 320;
+const BOUNDS = { x0: -100, x1: 760, y0: 440, y1: 1395 };
+const tableByNo = no => tables.find(t => t.no === no);
+
+function setEditing(on) {
+  editing = on;
+  svg.classList.toggle("editing", on);
+  editToggle.hidden = on;
+  editTools.hidden = !on;
+  hideTip();
+  selectTable(null);
+}
+editToggle.onclick = () => {
+  if (mode === "sheets" && !getPin()) { openPinDialog(() => setEditing(true)); return; }
+  setEditing(true);
+};
+document.getElementById("t-done").onclick = () => setEditing(false);
+
+function selectTable(no) {
+  selNo = no;
+  tablesLayer.querySelectorAll(".ot").forEach(g => g.classList.toggle("sel", g.dataset.no === no));
+  // the row stays in place (greyed out) so the map never jumps while dragging
+  const t = no && tableByNo(no);
+  document.getElementById("sel-name").textContent = t ? tableName(no) : "Valitse pöytä:";
+  selTools.querySelectorAll("button").forEach(b => b.disabled = !t);
+  if (!t) return;
+  const single = t.parts.length === 1;
+  document.getElementById("t-short").disabled = !single || lengthOf(t) <= LEN_MIN;
+  document.getElementById("t-long").disabled = !single || lengthOf(t) >= LEN_MAX;
+}
+
+function svgPoint(e) {
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+function startDrag(e, no, g) {
+  if (!editing || e.button > 0) return;
+  e.preventDefault();
+  selectTable(no);
+  const t = tableByNo(no), p = svgPoint(e);
+  drag = { no, g, t, sx: p.x, sy: p.y, ox: t.x, oy: t.y, moved: false };
+  try { g.setPointerCapture(e.pointerId); } catch (err) { /* keep dragging without capture */ }
+  g.classList.add("dragging");
+  const move = ev => {
+    const q = svgPoint(ev);
+    const dx = q.x - drag.sx, dy = q.y - drag.sy;
+    if (!drag.moved && Math.hypot(dx, dy) < 3) return;
+    drag.moved = true;
+    t.x = Math.round(Math.min(BOUNDS.x1, Math.max(BOUNDS.x0, drag.ox + dx)));
+    t.y = Math.round(Math.min(BOUNDS.y1, Math.max(BOUNDS.y0, drag.oy + dy)));
+    g.setAttribute("transform", `translate(${t.x} ${t.y})`);
+  };
+  const end = () => {
+    g.removeEventListener("pointermove", move);
+    g.removeEventListener("pointerup", end);
+    g.removeEventListener("pointercancel", end);
+    g.classList.remove("dragging");
+    const moved = drag.moved;
+    drag = null;
+    if (moved) saveLayout(t);
+  };
+  g.addEventListener("pointermove", move);
+  g.addEventListener("pointerup", end);
+  g.addEventListener("pointercancel", end);
+}
+
+// keyboard: arrows move the selected table (saved once the keys stop)
+let nudgeTimer = null;
+function nudge(e, no) {
+  const step = e.shiftKey ? 20 : 5;
+  const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectTable(no); return; }
+  if (!d) return;
+  e.preventDefault();
+  selectTable(no);
+  const t = tableByNo(no);
+  t.x = Math.min(BOUNDS.x1, Math.max(BOUNDS.x0, t.x + d[0]));
+  t.y = Math.min(BOUNDS.y1, Math.max(BOUNDS.y0, t.y + d[1]));
+  nodes["table" + no].g.setAttribute("transform", `translate(${t.x} ${t.y})`);
+  clearTimeout(nudgeTimer);
+  nudgeTimer = setTimeout(() => saveLayout(t), 600);
+}
+
+function layoutRow(t) {
+  const g = { x: Math.round(t.x), y: Math.round(t.y), r: t.r };
+  if (t.parts.length === 1) g.len = lengthOf(t);
+  return JSON.stringify(g);
+}
+async function saveLayout(t, del = false) {
+  const note = del ? JSON.stringify({ del: 1 }) : layoutRow(t);
+  labels[layoutKey(t.no)] = { species: "", note };   // show the change right away
+  refresh();
+  try {
+    await postRow(layoutKey(t.no), tableName(t.no) + " · paikka pihalla", "", note, getPin());
+  } catch (e) {
+    if (e && e.code === "bad_pin") {
+      setPin("");
+      setStatus("offline", "Väärä PIN-koodi: pöydän muutosta ei tallennettu.");
+      openPinDialog(() => saveLayout(t, del));
+    } else {
+      setStatus("offline", "Pöydän muutosta ei tallennettu. Tarkista verkkoyhteys ja yritä uudelleen.");
+    }
+    if (mode === "sheets") loadSheet().catch(() => {});   // put the table back where the sheet has it
+  }
+}
+
+function changeSelected(fn) {
+  const t = selNo && tableByNo(selNo);
+  if (!t) return;
+  fn(t);
+  saveLayout(t);
+  selectTable(t.no);
+}
+document.getElementById("t-rotl").onclick = () => changeSelected(t => { t.r = ((t.r - ROT_STEP) % 360 + 360) % 360; });
+document.getElementById("t-rotr").onclick = () => changeSelected(t => { t.r = (t.r + ROT_STEP) % 360; });
+document.getElementById("t-short").onclick = () => changeSelected(t => setLength(t, Math.max(LEN_MIN, lengthOf(t) - LEN_STEP)));
+document.getElementById("t-long").onclick = () => changeSelected(t => setLength(t, Math.min(LEN_MAX, lengthOf(t) + LEN_STEP)));
+document.getElementById("t-add").onclick = () => {
+  const used = new Set(tables.map(t => t.no));
+  let n = 1;
+  while (used.has(String(n))) n++;
+  const t = { no: String(n), x: NEW_TABLE.x, y: NEW_TABLE.y, r: NEW_TABLE.r, parts: [[-NEW_TABLE.len / 2, -7.5, NEW_TABLE.len, 15]] };
+  saveLayout(t);
+  selectTable(t.no);
+  setStatus(statusEl.dataset.state, `${tableName(t.no)} lisätty. Vedä se oikealle paikalle.`);
+};
+document.getElementById("t-del").onclick = async () => {
+  const t = selNo && tableByNo(selNo);
+  if (!t) return;
+  const d = labels[tableId(t.no)];
+  const extra = d && (d.species || d.note) ? ` Sen kasvimerkintä (${d.species || "muistiinpano"}) poistetaan myös.` : "";
+  if (!confirm(`Poistetaanko ${tableName(t.no)}?${extra}`)) return;
+  selectTable(null);
+  await saveLayout(t, true);
+  if (extra) {
+    try { await postRow(tableId(t.no), tableName(t.no) + " (piha)", "", "", getPin()); labels[tableId(t.no)] = { species: "", note: "" }; refresh(); }
+    catch (e) { /* the table is gone; its old label stays in the sheet */ }
+  }
+};
+
+/* PIN prompt for editing (plant labels ask for it inside their own pop-up) */
+const pinpop = document.getElementById("pinpop");
+const pinInput = document.getElementById("pinpop-pin");
+let pinThen = null;
+function openPinDialog(then) {
+  pinThen = then;
+  pinInput.value = "";
+  document.getElementById("pinpop-err").hidden = true;
+  pinpop.hidden = false;
+  requestAnimationFrame(() => pinInput.focus());
+}
+function closePinDialog() { pinpop.hidden = true; pinThen = null; }
+document.getElementById("pinpop-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = pinInput.value.trim();
+  if (!v) { const er = document.getElementById("pinpop-err"); er.textContent = "Kirjoita perheen PIN-koodi."; er.hidden = false; return; }
+  setPin(v);
+  const then = pinThen;
+  closePinDialog();
+  if (then) then();
+});
+document.getElementById("pinpop-cancel").onclick = closePinDialog;
+document.getElementById("pinpop-close").onclick = closePinDialog;
+pinpop.addEventListener("click", e => { if (e.target === pinpop) closePinDialog(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !pinpop.hidden) closePinDialog(); });
+
 /* ---------------- init ---------------- */
 document.documentElement.lang = "fi";
 drawGround();
 drawHut();
 HOUSES.forEach(drawHouse);
-TABLES.forEach(drawTable);
+svg.appendChild(tablesLayer);
 drawKassa();
 refresh();
 connect();

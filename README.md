@@ -22,3 +22,10 @@ Google-taulukon yhteys: liitä Apps Script -verkkosovelluksen osoite (`…/exec`
 Tallentaminen vaatii perheen PIN-koodin. Apps Script tarkistaa koodin, eikä koodi ole tässä julkisessa koodissa:
 se asetetaan Apps Scriptin *Projektin asetukset → Skriptin ominaisuudet* -kohtaan nimellä `PIN`.
 Sivu kysyy koodin kerran ja muistaa sen kyseisellä laitteella.
+
+## Ulkopöytien muokkaus
+
+Etusivun **Muokkaa ulkopöytiä** -painikkeella voi siirtää pöytiä vetämällä (hiiri tai sormi), kääntää, pidentää,
+lisätä ja poistaa niitä. Jokaisen muutetun pöydän paikka tallentuu taulukkoon omana rivinään (`L-P3` jne.,
+muistiinpanoissa sijainti), joten kaikki näkevät saman järjestyksen. Muokkaus vaatii saman perheen PIN-koodin.
+Jos rivin poistaa taulukosta, pöytä palaa alkuperäiselle paikalleen.
