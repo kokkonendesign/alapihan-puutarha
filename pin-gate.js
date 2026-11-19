@@ -66,9 +66,9 @@
         padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line, #d9d5c8); background: var(--bg, #f6f4ee); color: var(--ink, #1f2a22); }
       .pin-card input:focus { outline: 2px solid var(--focus, #7aa8ff); outline-offset: 1px; }
       .pin-card .pin-err { color: var(--select, #b5452c); font-weight: 600; font-size: .9rem; margin: 8px 0 0; min-height: 1.2em; }
-      .pin-card button.pin-open { width: 100%; margin-top: 10px; font: inherit; font-weight: 700; font-size: 1.05rem; padding: 12px; border-radius: 12px;
-        border: 1.5px solid var(--pink-strong, #c98bb9); background: var(--pink, #e4bad8); color: var(--pink-ink, #241b21); cursor: pointer; }
-      .pin-card button.pin-open:hover { background: var(--pink-strong, #c98bb9); }
+      .pin-card button.pin-open { width: 100%; margin-top: 10px; font: inherit; font-weight: 600; font-size: .9rem; text-transform: uppercase; letter-spacing: .08em; padding: 13px; border-radius: 999px;
+        border: 0; background: var(--pink, #f48fb1); color: var(--pink-ink, #fff); cursor: pointer; }
+      .pin-card button.pin-open:hover { background: var(--pink-strong, #e2769c); }
       .pin-card button.pin-open:disabled { opacity: .6; cursor: progress; }
       .pin-card button.pin-view { margin-top: 10px; font: inherit; font-size: .88rem; background: none; border: 0; color: var(--muted, #66705f);
         text-decoration: underline; cursor: pointer; padding: 6px; }

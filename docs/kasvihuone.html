@@ -5,15 +5,19 @@
 <title>Kasvihuoneen kasvikartta · Alapihan Puutarha</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@300;400;500;600;700;800&display=swap">
 <style>
-  /* button pink, taken from the Alapihan Puutarha logo */
-  :root { --pink: #e4bad8; --pink-strong: #c98bb9; --pink-soft: #f6e7f2; --pink-ink: #241b21; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pink-soft: #4a3446; } }
-  :root[data-theme="dark"] { --pink-soft: #4a3446; }
+  /* look of alapihanpuutarha.fi: white page, Roboto Slab, navy headings, pink pill buttons */
+  :root { --pink: #f48fb1; --pink-strong: #e2769c; --pink-soft: #fde8ef; --pink-ink: #ffffff; --heading: #2e4371; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pink-soft: #4a3040; --heading: #c9d6f2; } }
+  :root[data-theme="dark"] { --pink-soft: #4a3040; --heading: #c9d6f2; }
+  .btn-site, button.primary { text-transform: uppercase; letter-spacing: .08em; font-weight: 600; font-size: .8rem; border-radius: 999px; }
   :root {
-    --bg: #f6f4ee;
+    --bg: #ffffff;
     --surface: #ffffff;
-    --ink: #1f2a22;
+    --ink: #141c2d;
     --muted: #66705f;
     --line: #d9d5c8;
     --wall: #3b4a3f;
@@ -69,7 +73,7 @@
   body {
     background: var(--bg);
     color: var(--ink);
-    font: 15px/1.45 Arial, Helvetica, sans-serif;
+    font: 300 15px/1.55 "Roboto Slab", Georgia, serif;
   }
   header, main {
     padding-left: max(16px, env(safe-area-inset-left, 0px));
@@ -90,7 +94,8 @@
   @media (max-width: 480px) { .theme-label { display: none; } .theme-toggle { padding: 9px; } }
   .back { display: inline-block; margin-bottom: 6px; color: var(--muted); text-decoration: none; font-size: .9rem; font-weight: 600; }
   .back:hover { color: var(--ink); text-decoration: underline; }
-  h1 { font-size: 1.4rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  h1 { font-size: 1.5rem; font-weight: 400; color: var(--heading); margin: 0; text-wrap: balance; }
+  b, strong { font-weight: 600; }
   header p { margin: 4px 0 0; color: var(--muted); }
   .status { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: .82rem; color: var(--muted); }
   .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--plant); }
@@ -112,8 +117,8 @@
     padding: 12px; position: relative;
   }
   .map-title {
-    margin: 2px 0 10px; text-align: center; font-size: clamp(1.5rem, 4.5vw, 2.1rem); font-weight: 800;
-    letter-spacing: -0.01em; color: var(--ink); line-height: 1.15;
+    margin: 2px 0 10px; text-align: center; font-size: clamp(1.6rem, 4.8vw, 2.4rem); font-weight: 300;
+    color: var(--heading); line-height: 1.15;
   }
   svg.map { display: block; width: 100%; height: auto; max-height: calc(100vh - 150px); margin: 0 auto; touch-action: manipulation; }
 
@@ -174,7 +179,7 @@
   .hn-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hn-arrow { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-size: 1.5rem; font-weight: 800; line-height: 1; }
   .hn-prev .hn-arrow { background: var(--bg); }
-  .hn-next .hn-arrow { background: #fff; color: var(--pink-ink); font-size: 1.8rem; }
+  .hn-next .hn-arrow { background: #fff; color: var(--pink-strong); font-size: 1.8rem; }
   .hn-dots { display: flex; gap: 7px; align-items: center; }
   .hn-dots a { width: 12px; height: 12px; min-height: 0; border-radius: 50%; background: var(--line); padding: 0; }
   .hn-dots a[aria-current="page"] { background: var(--pink-strong); width: 26px; border-radius: 999px; }
@@ -255,7 +260,7 @@
   /* panel */
   .panel { display: grid; gap: 14px; }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
-  .card h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+  .card h2 { font-size: .8rem; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--heading); margin: 0 0 8px; }
   input[type=search], input[type=text], textarea {
     width: 100%; font: inherit; color: var(--ink); background: var(--bg);
     border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
