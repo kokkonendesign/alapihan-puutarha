@@ -833,7 +833,13 @@ function truncate(str, max) { return str.length > max ? str.slice(0, max - 1) + 
 function drawStatic() {
   svg.setAttribute("viewBox", `-24 -24 ${W + 48} ${H + 100}`);   // "-24 -24 832 1210" in Kasvihuone 1
   // smaller houses are drawn smaller than Kasvihuone 1 (never below 60 %, so they stay easy to tap)
-  if (!IS_ORIGINAL) svg.style.setProperty("--map-scale", Math.min(1, Math.max(0.6, (H + 100) / 1210)).toFixed(3));
+  // Draw every house at the same scale as Kasvihuone 1 (viewBox 832 × 1210 at full width):
+  // a narrower house gets a narrower drawing, so tables, badges and text are the same size
+  // in every house. The tiny Tilaushuone B keeps at least 140 px so it stays easy to tap.
+  if (!IS_ORIGINAL) {
+    svg.style.width = `max(${((W + 48) / 832 * 100).toFixed(1)}%, 140px)`;
+    svg.style.setProperty("--map-scale", Math.min(1, (H + 100) / 1210).toFixed(3));
+  }
   el("rect", { x: 0, y: 0, width: W, height: H, class: "floor" }, svg);
   // walls with an entrance gap in the bottom wall
   el("path", { class: "wall", d: `M${DOOR[0]} ${H} H0 V0 H${W} V${H} H${DOOR[1]}` }, svg);
