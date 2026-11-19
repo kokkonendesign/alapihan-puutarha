@@ -104,6 +104,10 @@
     background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
     padding: 12px; position: relative;
   }
+  .map-title {
+    margin: 2px 0 10px; text-align: center; font-size: clamp(1.5rem, 4.5vw, 2.1rem); font-weight: 800;
+    letter-spacing: -0.01em; color: var(--ink); line-height: 1.15;
+  }
   svg.map { display: block; width: 100%; height: auto; max-height: calc(100vh - 150px); margin: 0 auto; touch-action: manipulation; }
 
   /* walls */
@@ -355,6 +359,7 @@
 
 <main>
   <section class="map-wrap" aria-label="Kasvihuoneen pohjapiirros">
+    <h2 class="map-title" id="map-title">Kasvihuone</h2>
     <svg class="map" id="map" data-tab="all" viewBox="-24 -24 832 1210" role="group" aria-label="Kasvihuoneen pohjapiirros, sisäänkäynti alhaalla"></svg>
     <div class="tip" id="tip" role="presentation"></div>
     <div class="legend">
@@ -1251,6 +1256,7 @@ function setupHouseNav() {
 /* ---------------- init ---------------- */
 document.documentElement.lang = "fi";
 document.getElementById("page-title").textContent = HOUSE_NAME + " · Kasvikartta";
+document.getElementById("map-title").textContent = HOUSE_NAME;
 document.title = HOUSE_NAME + " · Alapihan Puutarha";
 // on claude.ai there is no yard page to go back to
 if (window.claude) document.getElementById("back").hidden = true;
