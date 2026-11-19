@@ -10,6 +10,7 @@
  *  4. Hyväksy oikeudet ja kopioi verkkosovelluksen URL (päättyy /exec).
  *  5. Perheen PIN-koodi: Projektin asetukset (rataskuvake) → Skriptin ominaisuudet
  *     → Lisää ominaisuus: nimi PIN, arvo = perheen koodi. Tallenna.
+ *     (Koodin vaihto: muuta vain PIN-ominaisuuden arvo – uutta käyttöönottoa ei tarvita.)
  *     Koodi on vain täällä, ei julkisessa GitHub-koodissa.
  *
  * The map reads all labels with GET and saves one label with POST.
@@ -18,7 +19,7 @@
  */
 
 const SHEET_NAME = "Kasvit";
-const HEADERS = ["Koodi", "Paikka", "Kasvi", "Muistiinpanot", "Päivitetty"];
+const HEADERS = ["Koodi", "Paikka", "Kasvi", "Muistiinpanot", "Päivitetty", "Kirjaaja"];
 
 function getSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -30,6 +31,9 @@ function getSheet_() {
     sheet.setColumnWidth(2, 320);
     sheet.setColumnWidth(3, 220);
     sheet.setColumnWidth(4, 320);
+  } else if (sheet.getRange(1, HEADERS.length).getValue() === "") {
+    // older sheets: add the "Kirjaaja" heading
+    sheet.getRange(1, HEADERS.length).setValue(HEADERS[HEADERS.length - 1]).setFontWeight("bold");
   }
   return sheet;
 }
@@ -55,7 +59,8 @@ function pinOk_(pin) {
   return !!expected && String(pin || "").trim() === expected.trim();
 }
 
-/** POST body (text/plain JSON): { id, name, species, note, pin } → upserts that section's row. */
+/** POST body (text/plain JSON): { id, name, species, note, pin, by } → upserts that section's row.
+ *  { action: "check", pin } only checks the PIN (the map's opening screen). */
 function doPost(e) {
   let data;
   try {
@@ -65,6 +70,7 @@ function doPost(e) {
   }
   // a wrong PIN waits a moment, so guessing the code is slow
   if (!pinOk_(data.pin)) { Utilities.sleep(1500); return json_({ ok: false, error: "bad pin" }); }
+  if (data.action === "check") return json_({ ok: true, checked: true });
   const id = String(data.id || "").trim();
   if (!/^[A-Za-z0-9-]{1,20}$/.test(id)) return json_({ ok: false, error: "bad id" });
   // a leading ' keeps text like "=..." from being run as a spreadsheet formula
@@ -72,6 +78,7 @@ function doPost(e) {
   const name = plain(data.name, 200);
   const species = plain(data.species, 200);
   const note = plain(data.note, 1000);
+  const by = plain(data.by, 60);
 
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -80,7 +87,7 @@ function doPost(e) {
     const last = sheet.getLastRow();
     const ids = last > 1 ? sheet.getRange(2, 1, last - 1, 1).getValues().map(r => String(r[0])) : [];
     const idx = ids.indexOf(id);
-    const row = [id, name, species, note, new Date()];
+    const row = [id, name, species, note, new Date(), by];
     if (idx >= 0) {
       sheet.getRange(idx + 2, 1, 1, row.length).setValues([row]);
     } else {

@@ -17,11 +17,14 @@ Interaktiivinen kartta Alapihan Puutarhasta.
 
 Google-taulukon yhteys: liitä Apps Script -verkkosovelluksen osoite (`…/exec`) `SHEETS_URL`-kohtaan tiedostoissa `piha.html` ja `kasvihuone.html`.
 
-## Perheen PIN-koodi
+## Kirjaajan nimi ja PIN-koodi
 
-Tallentaminen vaatii perheen PIN-koodin. Apps Script tarkistaa koodin, eikä koodi ole tässä julkisessa koodissa:
-se asetetaan Apps Scriptin *Projektin asetukset → Skriptin ominaisuudet* -kohtaan nimellä `PIN`.
-Sivu kysyy koodin kerran ja muistaa sen kyseisellä laitteella.
+Kun sivu avataan, se kysyy kerran **kirjaajan nimen** ja **perheen PIN-koodin** (`pin-gate.js`). Ne muistetaan
+laitteella, kunnes sivua ei ole käytetty tuntiin; silloin PIN kysytään uudelleen. Nimi tallentuu jokaisen
+merkinnän viereen taulukon **Kirjaaja**-sarakkeeseen. "Katsele ilman koodia" avaa sivun katseltavaksi.
+
+Apps Script tarkistaa koodin, eikä koodi ole tässä julkisessa koodissa: se asetetaan Apps Scriptin
+*Projektin asetukset → Skriptin ominaisuudet* -kohtaan nimellä `PIN`. Koodin vaihtamiseen riittää muuttaa arvo.
 
 ## Ulkopöytien muokkaus
 

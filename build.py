@@ -4,7 +4,8 @@ The pages are written in claude.ai artifact form (no <html>/<head>/<body>).
 This wraps each into a complete page under docs/, which GitHub Pages serves:
 
     piha.html        -> docs/index.html        (front page: the yard)
-    kasvihuone.html  -> docs/kasvihuone.html   (greenhouse plant map, ?talo=1..4)
+    kasvihuone.html  -> docs/kasvihuone.html   (greenhouse plant map, ?talo=1..5)
+    pin-gate.js      -> docs/pin-gate.js       (name + family PIN screen, shared by both pages)
 
     python3 build.py
 """
@@ -32,3 +33,8 @@ for src_name, out_name in PAGES.items():
     out.parent.mkdir(exist_ok=True)
     out.write_text(page, encoding="utf-8")
     print(f"Wrote {out.relative_to(root)} ({len(page):,} bytes)")
+
+# shared scripts are copied as they are
+for name in ["pin-gate.js"]:
+    (root / "docs" / name).write_text((root / name).read_text(encoding="utf-8"), encoding="utf-8")
+    print(f"Copied docs/{name}")

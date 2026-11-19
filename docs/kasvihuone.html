@@ -401,11 +401,6 @@
       <input type="text" id="pop-species" placeholder="Kirjoita kasvi, esim. basilika" enterkeyhint="done">
       <label for="pop-note">Muistiinpanot (vapaaehtoinen)</label>
       <textarea id="pop-note" rows="2" placeholder="Lajike, kylvöpäivä, kastelu…"></textarea>
-      <div id="pop-pin-wrap" hidden>
-        <label for="pop-pin">Perheen PIN-koodi</label>
-        <input type="password" id="pop-pin" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
-        <p class="pop-hint">Koodi kysytään vain kerran tällä laitteella.</p>
-      </div>
       <p class="pop-err" id="pop-err" role="alert" hidden></p>
       <div class="btns">
         <button type="submit" class="primary">Tallenna</button>
@@ -416,6 +411,7 @@
   </div>
 </div>
 
+<script src="pin-gate.js"></script>
 <script>
 /* ------------------------------------------------------------------
    Sections of the greenhouse. Edit the "species" and "note" values
@@ -631,8 +627,12 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbznsgru95KJ0qFghMDFF
 const SHEETS_POLL_MS = 15000;
 const STORE_KEY = "alapiha-greenhouse-v1" + (HOUSE_PREFIX ? "-" + HOUSE_NO : "");
 const PIN_KEY = "alapiha-greenhouse-pin";  // family PIN, remembered on this device after it works once
-function getPin() { try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
-function setPin(v) { try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
+// name + PIN are asked once on the opening screen (pin-gate.js) and remembered while the site is in use
+function getPin() { if (window.PinGate) return PinGate.getPin(); try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
+function setPin(v) { if (window.PinGate) return PinGate.setPin(v); try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
+const loggerName = () => (window.PinGate ? PinGate.getName() : "");
+// no PIN yet (viewing only, or the site sat unused): show the opening screen once and wait
+const askPin = reason => (window.PinGate ? PinGate.require(reason) : Promise.resolve(""));
 let sections = DEFAULT_SECTIONS.map(s => ({ ...s }));
 let mode = "local";       // "local" | "db" | "sheets" | "none"
 let pendingSaves = 0;
@@ -664,7 +664,7 @@ async function persist(s, pin) {
       const res = await fetch(SHEETS_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ id: HOUSE_PREFIX + s.id, name: HOUSE_NAME + " · " + s.name, species: s.species, note: s.note, pin: pin || "" }),
+        body: JSON.stringify({ id: HOUSE_PREFIX + s.id, name: HOUSE_NAME + " · " + s.name, species: s.species, note: s.note, pin: pin || "", by: loggerName() }),
       });
       const out = await res.json();
       if (!out.ok) {
@@ -713,6 +713,7 @@ async function loadSheet() {
 
 function connectSheets() {
   mode = "sheets";
+  if (window.PinGate) PinGate.init(SHEETS_URL);
   setStatus("loading", "Ladataan merkintöjä…");
   let ok = false;
   const tick = async () => {
@@ -955,8 +956,6 @@ function openPopup(id) {
   popSpecies.value = s.species;
   popNote.value = s.note;
   document.getElementById("pop-clear").hidden = !s.species && !s.note;
-  popPinWrap.hidden = !(mode === "sheets" && !getPin());
-  popPin.value = "";
   showPopError("");
   setPopBusy(false);
 
@@ -971,8 +970,6 @@ function closePopup() {
   nodes[id]?.g.focus({ preventScroll: true });
 }
 
-const popPinWrap = document.getElementById("pop-pin-wrap");
-const popPin = document.getElementById("pop-pin");
 const popErr = document.getElementById("pop-err");
 let popBusy = false;
 function showPopError(text) { popErr.textContent = text; popErr.hidden = !text; }
@@ -994,8 +991,8 @@ async function saveFromPopup(species, note) {
   }
   // Google Sheet: the family PIN is checked by the Apps Script before saving.
   // Wait for the answer here, so a wrong PIN keeps the pop-up open.
-  const pin = getPin() || popPin.value.trim();
-  if (!pin) { popPinWrap.hidden = false; showPopError("Kirjoita perheen PIN-koodi."); popPin.focus(); return; }
+  const pin = getPin() || await askPin("save");
+  if (!pin) { showPopError("Tallentaminen vaatii nimesi ja perheen PIN-koodin."); return; }
   showPopError("");
   setPopBusy(true);
   try {
@@ -1004,10 +1001,8 @@ async function saveFromPopup(species, note) {
     setPopBusy(false);
     if (e && e.code === "bad_pin") {
       setPin("");
-      popPinWrap.hidden = false;
-      popPin.value = "";
-      showPopError("Väärä PIN-koodi. Tarkista koodi ja yritä uudelleen.");
-      popPin.focus();
+      showPopError("PIN-koodi on vaihtunut. Kirjoita uusi koodi ja paina Tallenna uudelleen.");
+      askPin("bad");
     } else {
       showPopError("Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
     }

@@ -340,27 +340,6 @@
   </aside>
 </main>
 
-<div class="pop-backdrop" id="pinpop" hidden>
-  <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pinpop-title">
-    <div class="pop-head">
-      <div class="pop-titles">
-        <span class="pop-kind">ulkopöytien muokkaus</span>
-        <h3 id="pinpop-title">Perheen PIN-koodi</h3>
-      </div>
-      <button type="button" class="pop-x" id="pinpop-close" aria-label="Sulje">×</button>
-    </div>
-    <form id="pinpop-form" autocomplete="off">
-      <label for="pinpop-pin">Kirjoita koodi, niin voit siirtää ja lisätä pöytiä</label>
-      <input type="password" id="pinpop-pin" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
-      <p class="pop-err" id="pinpop-err" role="alert" hidden></p>
-      <div class="btns">
-        <button type="submit" class="primary">Jatka</button>
-        <button type="button" id="pinpop-cancel">Peruuta</button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <div class="pop-backdrop" id="pop" hidden>
   <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
     <div class="pop-head">
@@ -376,11 +355,6 @@
       <input type="text" id="pop-species" placeholder="Kirjoita kasvi, esim. orvokki" enterkeyhint="done">
       <label for="pop-note">Muistiinpanot (vapaaehtoinen)</label>
       <textarea id="pop-note" rows="2" placeholder="Lajike, istutuspäivä, kastelu…"></textarea>
-      <div id="pop-pin-wrap" hidden>
-        <label for="pop-pin">Perheen PIN-koodi</label>
-        <input type="password" id="pop-pin" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
-        <p class="pop-hint">Koodi kysytään vain kerran tällä laitteella.</p>
-      </div>
       <p class="pop-err" id="pop-err" role="alert" hidden></p>
       <div class="btns">
         <button type="submit" class="primary">Tallenna</button>
@@ -391,6 +365,7 @@
   </div>
 </div>
 
+<script src="pin-gate.js"></script>
 <script>
 /* ============================================================
    Alapihan Puutarha – front page: the yard seen from above.
@@ -724,8 +699,12 @@ function refresh() {
 /* ---------------- storage: shared Google Sheet (same as the greenhouse maps) ---------------- */
 const statusEl = document.getElementById("status");
 function setStatus(state, text) { statusEl.dataset.state = state; statusEl.textContent = text; }
-function getPin() { try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
-function setPin(v) { try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
+// name + PIN are asked once on the opening screen (pin-gate.js) and remembered while the site is in use
+function getPin() { if (window.PinGate) return PinGate.getPin(); try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
+function setPin(v) { if (window.PinGate) return PinGate.setPin(v); try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
+const loggerName = () => (window.PinGate ? PinGate.getName() : "");
+// no PIN yet (viewing only, or the site sat unused): show the opening screen once and wait
+const askPin = reason => (window.PinGate ? PinGate.require(reason) : Promise.resolve(""));
 let pendingSaves = 0;
 let writeSeq = 0;          // bumped by every save, so an older sheet read can't undo it
 
@@ -745,6 +724,7 @@ function connect() {
     return;
   }
   mode = "sheets";
+  if (window.PinGate) PinGate.init(SHEETS_URL);
   let ok = false;
   const tick = async () => {
     try {
@@ -773,7 +753,7 @@ async function postRow(id, name, species, note, pin) {
     const res = await fetch(SHEETS_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ id, name, species, note, pin }),
+      body: JSON.stringify({ id, name, species, note, pin, by: loggerName() }),
     });
     const out = await res.json();
     if (!out.ok) { const err = new Error(out.error || "save failed"); if (out.error === "bad pin") err.code = "bad_pin"; throw err; }
@@ -789,8 +769,6 @@ const pop = document.getElementById("pop");
 const popForm = document.getElementById("pop-form");
 const popSpecies = document.getElementById("pop-species");
 const popNote = document.getElementById("pop-note");
-const popPinWrap = document.getElementById("pop-pin-wrap");
-const popPin = document.getElementById("pop-pin");
 const popErr = document.getElementById("pop-err");
 let popNo = null, popBusy = false, popReturn = null;
 
@@ -810,8 +788,6 @@ function openPopup(no) {
   popSpecies.value = d.species || "";
   popNote.value = d.note || "";
   document.getElementById("pop-clear").hidden = !d.species && !d.note;
-  popPinWrap.hidden = !(mode === "sheets" && !getPin());
-  popPin.value = "";
   showPopError("");
   setPopBusy(false);
   nodes["table" + no]?.g.classList.add("selected");
@@ -827,8 +803,8 @@ function closePopup() {
 }
 async function saveFromPopup(species, note) {
   if (!popNo || popBusy) return;
-  const pin = mode === "sheets" ? (getPin() || popPin.value.trim()) : "";
-  if (mode === "sheets" && !pin) { popPinWrap.hidden = false; showPopError("Kirjoita perheen PIN-koodi."); popPin.focus(); return; }
+  const pin = mode === "sheets" ? (getPin() || await askPin("save")) : "";
+  if (mode === "sheets" && !pin) { showPopError("Tallentaminen vaatii nimesi ja perheen PIN-koodin."); return; }
   showPopError("");
   setPopBusy(true);
   try {
@@ -836,15 +812,14 @@ async function saveFromPopup(species, note) {
   } catch (e) {
     setPopBusy(false);
     if (e && e.code === "bad_pin") {
-      setPin(""); popPinWrap.hidden = false; popPin.value = "";
-      showPopError("Väärä PIN-koodi. Tarkista koodi ja yritä uudelleen.");
-      popPin.focus();
+      setPin("");
+      showPopError("PIN-koodi on vaihtunut. Kirjoita uusi koodi ja paina Tallenna uudelleen.");
+      askPin("bad");
     } else {
       showPopError("Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
     }
     return;
   }
-  if (pin) setPin(pin);
   setPopBusy(false);
   closePopup();
   refresh();
@@ -913,7 +888,7 @@ function setEditing(on) {
   selectTable(null);
 }
 editToggle.onclick = () => {
-  if (mode === "sheets" && !getPin()) { openPinDialog(() => setEditing(true)); return; }
+  if (mode === "sheets" && !getPin()) { askPin("save").then(pin => { if (pin) setEditing(true); }); return; }
   setEditing(true);
 };
 document.getElementById("t-done").onclick = () => setEditing(false);
@@ -998,8 +973,8 @@ async function saveLayout(t, del = false) {
   } catch (e) {
     if (e && e.code === "bad_pin") {
       setPin("");
-      setStatus("offline", "Väärä PIN-koodi: pöydän muutosta ei tallennettu.");
-      openPinDialog(() => saveLayout(t, del));
+      setStatus("offline", "PIN-koodi on vaihtunut: pöydän muutosta ei tallennettu.");
+      askPin("bad").then(pin => { if (pin) saveLayout(t, del); });
     } else {
       setStatus("offline", "Pöydän muutosta ei tallennettu. Tarkista verkkoyhteys ja yritä uudelleen.");
     }
@@ -1040,32 +1015,6 @@ document.getElementById("t-del").onclick = async () => {
     catch (e) { /* the table is gone; its old label stays in the sheet */ }
   }
 };
-
-/* PIN prompt for editing (plant labels ask for it inside their own pop-up) */
-const pinpop = document.getElementById("pinpop");
-const pinInput = document.getElementById("pinpop-pin");
-let pinThen = null;
-function openPinDialog(then) {
-  pinThen = then;
-  pinInput.value = "";
-  document.getElementById("pinpop-err").hidden = true;
-  pinpop.hidden = false;
-  requestAnimationFrame(() => pinInput.focus());
-}
-function closePinDialog() { pinpop.hidden = true; pinThen = null; }
-document.getElementById("pinpop-form").addEventListener("submit", e => {
-  e.preventDefault();
-  const v = pinInput.value.trim();
-  if (!v) { const er = document.getElementById("pinpop-err"); er.textContent = "Kirjoita perheen PIN-koodi."; er.hidden = false; return; }
-  setPin(v);
-  const then = pinThen;
-  closePinDialog();
-  if (then) then();
-});
-document.getElementById("pinpop-cancel").onclick = closePinDialog;
-document.getElementById("pinpop-close").onclick = closePinDialog;
-pinpop.addEventListener("click", e => { if (e.target === pinpop) closePinDialog(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape" && !pinpop.hidden) closePinDialog(); });
 
 /* ---------------- init ---------------- */
 document.documentElement.lang = "fi";
