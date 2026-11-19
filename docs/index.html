@@ -299,7 +299,7 @@
 <header>
   <div class="head-text">
     <h1>Alapihan Puutarha</h1>
-    <p>Napauta kasvihuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille voit kirjoittaa kasvin suoraan.</p>
+    <p>Napauta kasvihuonetta tai tilaushuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille voit kirjoittaa kasvin suoraan.</p>
     <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
   </div>
   <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Vaihda tummaan tilaan">
@@ -329,13 +329,13 @@
         </div>
       </div>
     </div>
-    <svg class="yard" id="yard" viewBox="-120 425 900 985" role="group" aria-label="Alapihan Puutarhan piha: neljä kasvihuonetta, ulkopöydät ja lampi"></svg>
+    <svg class="yard" id="yard" viewBox="-120 425 900 985" role="group" aria-label="Alapihan Puutarhan piha: kaksi tilaushuonetta, kolme kasvihuonetta, ulkopöydät ja lampi"></svg>
     <div class="tip" id="tip" role="presentation"></div>
   </section>
 
   <aside class="panel">
     <div class="card">
-      <h2>Kasvihuoneet</h2>
+      <h2>Kasvihuoneet ja tilaushuoneet</h2>
       <div class="quick" id="quick"></div>
     </div>
     <div class="card">
@@ -424,13 +424,15 @@ const WORLD = {
 };
 
 /* buildings and tables, already in the turned (local) frame: x, y, width, height */
+/* no = the plant map's number (kasvihuone.html?talo=no); kind + label = the name shown */
 const HOUSES = [
-  { no: "1", rect: [27, 532, 70, 336] },
-  { no: "2", rect: [170, 490, 156, 385] },
-  { no: "3", rect: [421, 543, 120, 449], noArrow: true },   // table 5 sits right at its door
-  { no: "4", rect: [615, 691, 76, 260] },
+  { no: "1", kind: "Tilaushuone", label: "1", rect: [27, 532, 70, 336], labelAt: .3 },   // name card higher, clear of Tilaushuone 2's
+  { no: "5", kind: "Tilaushuone", label: "2", rect: [-57, 670, 42, 132] },   // the little greenhouse on the far left
+  { no: "2", kind: "Kasvihuone", label: "2", rect: [170, 490, 156, 385] },
+  { no: "3", kind: "Kasvihuone", label: "3", rect: [421, 543, 120, 449], noArrow: true },   // table 5 sits right at its door
+  { no: "4", kind: "Kasvihuone", label: "4", rect: [615, 691, 76, 260] },
 ];
-const HUT = [-57, 670, 42, 132];       // small storage shed by greenhouse 1
+const houseName = hs => hs.kind + " " + hs.label;
 const KASSA = [548, 1048, 56, 44];      // cashier
 /* Outdoor tables as drawn by default. x, y = centre; r = turn in degrees;
    parts = rectangles around the centre [dx, dy, width, height];
@@ -461,7 +463,7 @@ const SHEETS_URL = "https://script.google.com/macros/s/AKfycbznsgru95KJ0qFghMDFF
 const SHEETS_POLL_MS = 15000;
 const LOCAL_KEY = "alapiha-piha-v1";
 const PIN_KEY = "alapiha-greenhouse-pin";
-const HOUSE_PREFIX = { "1": "K1-", "2": "", "3": "K3-", "4": "K4-" };
+const HOUSE_PREFIX = { "1": "K1-", "2": "", "3": "K3-", "4": "K4-", "5": "K5-" };
 
 const NS = "http://www.w3.org/2000/svg";
 const svg = document.getElementById("yard");
@@ -542,14 +544,6 @@ function drawGround() {
 
 }
 
-function drawHut() {
-  const [x, y, w, h] = HUT;
-  const g = el("g", { class: "hut", "aria-hidden": "true" }, svg);
-  el("rect", { class: "shadow", x: x + 7, y: y + 7, width: w, height: h, rx: w / 2.4 }, g);
-  el("rect", { class: "body", x, y, width: w, height: h, rx: w / 2.4 }, g);
-  for (let yy = y + 16; yy < y + h - 10; yy += 16) el("line", { class: "rib", x1: x + 4, x2: x + w - 4, y1: yy, y2: yy }, g);
-}
-
 function drawKassa() {
   const [x, y, w, h] = KASSA;
   const g = el("g", { class: "kassa", "aria-label": "Kassa", role: "img" }, svg);
@@ -563,7 +557,7 @@ function drawKassa() {
 
 function drawHouse(hs) {
   const [x, y, w, h] = hs.rect;
-  const g = el("g", { class: "gh", tabindex: 0, role: "link", "data-no": hs.no }, svg);
+  const g = el("g", { class: "gh", tabindex: 0, role: "link", "data-no": hs.no, "aria-label": houseName(hs) }, svg);
   el("rect", { class: "shadow", x: x + 9, y: y + 9, width: w, height: h, rx: w * .2 }, g);
   const lift = el("g", { class: "lift" }, g);
   el("rect", { class: "body", x, y, width: w, height: h, rx: w * .2 }, lift);
@@ -584,10 +578,10 @@ function drawHouse(hs) {
   el("rect", { class: "door", x: x + w / 2 - dw / 2, y: y + h - 7, width: dw, height: 12, rx: 3 }, lift);
   // name card
   const lab = el("g", { class: "label" }, lift);
-  const cy = y + h * .45, cw = 100;
+  const cy = y + h * (hs.labelAt || .45), cw = 100;
   el("rect", { x: x + w / 2 - cw / 2, y: cy - 34, width: cw, height: 68, rx: 14 }, lab);
-  el("text", { class: "small", x: x + w / 2, y: cy - 16 }, lab).textContent = "Kasvihuone";
-  el("text", { class: "big", x: x + w / 2, y: cy + 12 }, lab).textContent = hs.no;
+  el("text", { class: "small", x: x + w / 2, y: cy - 16 }, lab).textContent = hs.kind;
+  el("text", { class: "big", x: x + w / 2, y: cy + 12 }, lab).textContent = hs.label;
   const count = el("text", { class: "count", x: x + w / 2, y: cy + 27 }, lab);
   el("text", { class: "enter-text", x: x + w / 2, y: cy + 27 }, lab).textContent = "Astu sisään →";
   // entrance arrow below the door
@@ -596,7 +590,7 @@ function drawHouse(hs) {
   const go = () => { if (!editing) location.href = "kasvihuone.html?talo=" + hs.no; };
   g.addEventListener("click", go);
   g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
-  g.addEventListener("pointermove", e => { if (!editing) showTip(e, "Kasvihuone " + hs.no, "Napauta, niin pääset sisälle"); });
+  g.addEventListener("pointermove", e => { if (!editing) showTip(e, houseName(hs), "Napauta, niin pääset sisälle"); });
   g.addEventListener("pointerleave", hideTip);
   nodes["house" + hs.no] = { g, count };
 }
@@ -702,7 +696,7 @@ const chips = document.getElementById("chips");
 HOUSES.forEach(hs => {
   const a = document.createElement("a");
   a.href = "kasvihuone.html?talo=" + hs.no;
-  const b = document.createElement("b"); b.textContent = "Kasvihuone " + hs.no;
+  const b = document.createElement("b"); b.textContent = houseName(hs);
   const s = document.createElement("span"); s.dataset.count = hs.no;
   a.append(b, s);
   quick.appendChild(a);
@@ -1081,7 +1075,6 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && !pinpop.hi
 /* ---------------- init ---------------- */
 document.documentElement.lang = "fi";
 drawGround();
-drawHut();
 HOUSES.forEach(drawHouse);
 svg.appendChild(tablesLayer);
 drawKassa();

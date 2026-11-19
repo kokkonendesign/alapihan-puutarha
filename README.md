@@ -5,8 +5,8 @@ Interaktiivinen kartta Alapihan Puutarhasta.
 - **Etusivu (`piha.html` → `docs/index.html`):** piha ylhäältä katsottuna. Kasvihuoneet, lampi ja ulkopöydät ovat
   samoilla paikoilla kuin Google Mapsin ilmakuvassa (käännetty 33°, jotta kasvihuoneet ovat pystyssä).
   Kasvihuonetta napauttamalla pääsee sisälle, ulkopöydälle voi kirjoittaa kasvin suoraan.
-- **Kasvikartta (`kasvihuone.html?talo=1…4` → `docs/kasvihuone.html`):** pöydät, kukkakourut, amppelit ja lattia.
-  Kasvihuone 2 käyttää alkuperäisiä koodeja (T4-S1…), muut etuliitettä (K1-, K3-, K4-). Ulkopöydät ovat P1–P8.
+- **Kasvikartta (`kasvihuone.html?talo=1…5` → `docs/kasvihuone.html`):** pöydät, kukkakourut, amppelit ja lattia.
+  Kasvihuone 2 käyttää alkuperäisiä koodeja (T4-S1…), muut etuliitettä: Tilaushuone 1 = K1-, Tilaushuone 2 = K5-, Kasvihuone 3 = K3-, Kasvihuone 4 = K4-. Ulkopöydät ovat P1–P8.
 - **Merkinnät:** jaettu Google-taulukko, johon sivu yhdistää Apps Script -verkkosovelluksen kautta (`apps-script/Code.gs`)
 
 ## Muokkaaminen

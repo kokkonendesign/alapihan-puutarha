@@ -516,13 +516,14 @@ for (const [id, cx] of [["KR-L", EDGE_LANE_X], ["KR-R", W - EDGE_LANE_X]]) {
    Opened as a local file with no SHEETS_URL: saved in this browser only. */
 const SHEETS_URL = "https://script.google.com/macros/s/AKfycbznsgru95KJ0qFghMDFFLfXNAGm5gcX5TbWfN2X-fLqHAeFokBOixIblv6h9QTYvUDA/exec"; // Apps Script web app (ends in /exec)
 const SHEETS_POLL_MS = 15000;
-/* Which greenhouse this is: kasvihuone.html?talo=1…4 (opened from the yard page).
+/* Which greenhouse this is: kasvihuone.html?talo=1…5 (opened from the yard page).
    Greenhouse 2 keeps the original codes (T4-S1…); the others get a prefix
    (K1-T4-S1…), so all four share one spreadsheet without mixing up. */
-const HOUSES = { "1": "K1-", "2": "", "3": "K3-", "4": "K4-" };
+const HOUSES = { "1": "K1-", "2": "", "3": "K3-", "4": "K4-", "5": "K5-" };
+const HOUSE_NAMES = { "1": "Tilaushuone 1", "2": "Kasvihuone 2", "3": "Kasvihuone 3", "4": "Kasvihuone 4", "5": "Tilaushuone 2" };
 const HOUSE_NO = (() => { try { const n = new URLSearchParams(location.search).get("talo"); return n in HOUSES ? n : "2"; } catch (e) { return "2"; } })();
 const HOUSE_PREFIX = HOUSES[HOUSE_NO];
-const HOUSE_NAME = "Kasvihuone " + HOUSE_NO;
+const HOUSE_NAME = HOUSE_NAMES[HOUSE_NO];
 const STORE_KEY = "alapiha-greenhouse-v1" + (HOUSE_PREFIX ? "-" + HOUSE_NO : "");
 const PIN_KEY = "alapiha-greenhouse-pin";  // family PIN, remembered on this device after it works once
 function getPin() { try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
