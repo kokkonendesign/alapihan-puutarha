@@ -287,6 +287,11 @@
   svg.yard.editing .gh { cursor: default; }
   svg.yard.editing .gh:hover .lift { transform: none; }
 
+  .ask-title { margin: 0 0 6px; font-size: 1.15rem; }
+  .ask-text { margin: 0; color: var(--muted); }
+  #ask { z-index: 70; }
+  button.danger-fill { background: #a33a2a; border-color: #a33a2a; color: #fff; }
+  button.danger-fill:hover { background: #8a2f22; }
   .toast {
     position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom, 0px)); z-index: 60;
     transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
@@ -359,6 +364,17 @@
     </div>
   </aside>
 </main>
+
+<div class="pop-backdrop" id="ask" hidden>
+  <div class="pop" role="alertdialog" aria-modal="true" aria-labelledby="ask-title" aria-describedby="ask-text">
+    <h3 id="ask-title" class="ask-title"></h3>
+    <p id="ask-text" class="ask-text"></p>
+    <div class="btns">
+      <button type="button" id="ask-yes" class="primary danger-fill">Poista</button>
+      <button type="button" id="ask-no">Peruuta</button>
+    </div>
+  </div>
+</div>
 
 <div class="pop-backdrop" id="pop" hidden>
   <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
@@ -1058,7 +1074,7 @@ async function deleteTable(no) {
   if (!t) return;
   const d = labels[tableId(no)];
   const extra = d && (d.species || d.note) ? ` Sen kasvimerkintä (${d.species || "muistiinpano"}) poistetaan myös.` : "";
-  if (!confirm(`Poistetaanko ${tableName(no)}?${extra}`)) return;
+  if (!(await askYesNo(`Poistetaanko ${tableName(no)}?`, extra.trim() || "Pöytä poistuu kartalta kaikilta.", "Poista pöytä"))) return;
   if (mode === "sheets" && !getPin() && !(await askPin("save"))) return;
   if (selNo === no) selectTable(null);
   if (!(await saveLayout(t, true))) return;   // refused: the table is back and a message says why
@@ -1067,6 +1083,30 @@ async function deleteTable(no) {
     catch (e) { /* the table is gone; its old label stays in the sheet */ }
   }
   toast(`${tableName(no)} poistettu.`, "ok");
+}
+
+/* Yes/no question in the page's own window. (The browser's confirm() box is
+   blocked by many phone browsers – e.g. the one inside Messenger or WhatsApp –
+   which silently answers "no".) Resolves true for yes. */
+function askYesNo(title, text, yesLabel) {
+  const box = document.getElementById("ask");
+  const yes = document.getElementById("ask-yes"), no = document.getElementById("ask-no");
+  document.getElementById("ask-title").textContent = title;
+  document.getElementById("ask-text").textContent = text || "";
+  yes.textContent = yesLabel || "Kyllä";
+  box.hidden = false;
+  requestAnimationFrame(() => no.focus());
+  return new Promise(resolve => {
+    const done = answer => {
+      box.hidden = true;
+      yes.onclick = no.onclick = box.onclick = box.onkeydown = null;
+      resolve(answer);
+    };
+    yes.onclick = () => done(true);
+    no.onclick = () => done(false);
+    box.onclick = e => { if (e.target === box) done(false); };
+    box.onkeydown = e => { if (e.key === "Escape") done(false); };
+  });
 }
 
 /* A short message at the bottom of the screen (easy to see on a phone). */
