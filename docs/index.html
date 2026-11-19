@@ -251,6 +251,10 @@
   .pop input[type=text] { font-size: 1.1rem; padding: 12px 14px; }
   .pop .btns button { flex: 1 1 auto; }
   .pop .danger { color: var(--select); }
+  .pop input[type=password] { font-size: 1.1rem; padding: 12px 14px; width: 100%; box-sizing: border-box; }
+  .pop-hint { margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
+  .pop-err { margin: 8px 0 0; font-size: .9rem; font-weight: 600; color: var(--select); }
+  .pop button:disabled { opacity: .6; cursor: progress; }
   .pop-readonly { display: none; }
   .pop.readonly .pop-readonly, .pop-backdrop.readonly .pop-readonly { display: block; }
   .pop-backdrop.readonly .pop-edit { display: none; }
@@ -346,6 +350,12 @@
       <input type="text" id="pop-species" placeholder="Kirjoita kasvi, esim. basilika" enterkeyhint="done">
       <label for="pop-note">Muistiinpanot (vapaaehtoinen)</label>
       <textarea id="pop-note" rows="2" placeholder="Lajike, kylvöpäivä, kastelu…"></textarea>
+      <div id="pop-pin-wrap" hidden>
+        <label for="pop-pin">Perheen PIN-koodi</label>
+        <input type="password" id="pop-pin" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
+        <p class="pop-hint">Koodi kysytään vain kerran tällä laitteella.</p>
+      </div>
+      <p class="pop-err" id="pop-err" role="alert" hidden></p>
       <div class="btns">
         <button type="submit" class="primary">Tallenna</button>
         <button type="button" id="pop-cancel">Peruuta</button>
@@ -509,6 +519,9 @@ for (const [id, cx] of [["KR-L", EDGE_LANE_X], ["KR-R", W - EDGE_LANE_X]]) {
 const SHEETS_URL = "https://script.google.com/macros/s/AKfycbznsgru95KJ0qFghMDFFLfXNAGm5gcX5TbWfN2X-fLqHAeFokBOixIblv6h9QTYvUDA/exec"; // Apps Script web app (ends in /exec)
 const SHEETS_POLL_MS = 15000;
 const STORE_KEY = "alapiha-greenhouse-v1";
+const PIN_KEY = "alapiha-greenhouse-pin";  // family PIN, remembered on this device after it works once
+function getPin() { try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
+function setPin(v) { try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
 let sections = DEFAULT_SECTIONS.map(s => ({ ...s }));
 let mode = "local";       // "local" | "db" | "sheets" | "none"
 let pendingSaves = 0;
@@ -527,7 +540,7 @@ function loadLocal() {
   } catch (e) { /* storage unavailable: use defaults */ }
 }
 
-async function persist(s) {
+async function persist(s, pin) {
   if (mode === "db") {
     await db.doc("sections/" + s.id).set({ species: s.species, note: s.note });
     return;
@@ -539,10 +552,14 @@ async function persist(s) {
       const res = await fetch(SHEETS_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ id: s.id, name: s.name, species: s.species, note: s.note }),
+        body: JSON.stringify({ id: s.id, name: s.name, species: s.species, note: s.note, pin: pin || "" }),
       });
       const out = await res.json();
-      if (!out.ok) throw new Error(out.error || "save failed");
+      if (!out.ok) {
+        const err = new Error(out.error || "save failed");
+        if (out.error === "bad pin") err.code = "bad_pin";
+        throw err;
+      }
     } finally {
       pendingSaves--;
     }
@@ -818,42 +835,88 @@ function openPopup(id) {
   popSpecies.value = s.species;
   popNote.value = s.note;
   document.getElementById("pop-clear").hidden = !s.species && !s.note;
+  popPinWrap.hidden = !(mode === "sheets" && !getPin());
+  popPin.value = "";
+  showPopError("");
+  setPopBusy(false);
 
   pop.hidden = false;
   requestAnimationFrame(() => (canWrite ? popSpecies : document.getElementById("pop-close")).focus());
 }
 
 function closePopup() {
-  if (pop.hidden) return;
+  if (pop.hidden || popBusy) return;
   pop.hidden = true;
   const id = popId; popId = null;
   nodes[id]?.g.focus({ preventScroll: true });
 }
 
-popForm.addEventListener("submit", e => {
-  e.preventDefault();
+const popPinWrap = document.getElementById("pop-pin-wrap");
+const popPin = document.getElementById("pop-pin");
+const popErr = document.getElementById("pop-err");
+let popBusy = false;
+function showPopError(text) { popErr.textContent = text; popErr.hidden = !text; }
+function setPopBusy(on) {
+  popBusy = on;
+  pop.querySelectorAll(".pop-edit button").forEach(b => b.disabled = on);
+  popForm.querySelector("button[type=submit]").textContent = on ? "Tallennetaan…" : "Tallenna";
+}
+
+async function saveFromPopup(species, note) {
   const s = popId && byId(popId);
   if (!s) { closePopup(); return; }
-  s.species = popSpecies.value.trim();
-  s.note = popNote.value.trim();
+  if (popBusy) return;
+  if (mode !== "sheets") {
+    s.species = species; s.note = note;
+    closePopup();
+    commit(s);
+    return;
+  }
+  // Google Sheet: the family PIN is checked by the Apps Script before saving.
+  // Wait for the answer here, so a wrong PIN keeps the pop-up open.
+  const pin = getPin() || popPin.value.trim();
+  if (!pin) { popPinWrap.hidden = false; showPopError("Kirjoita perheen PIN-koodi."); popPin.focus(); return; }
+  showPopError("");
+  setPopBusy(true);
+  try {
+    await persist({ ...s, species, note }, pin);
+  } catch (e) {
+    setPopBusy(false);
+    if (e && e.code === "bad_pin") {
+      setPin("");
+      popPinWrap.hidden = false;
+      popPin.value = "";
+      showPopError("Väärä PIN-koodi. Tarkista koodi ja yritä uudelleen.");
+      popPin.focus();
+    } else {
+      showPopError("Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
+    }
+    return;
+  }
+  setPin(pin);
+  setPopBusy(false);
+  s.species = species; s.note = note;
   closePopup();
-  commit(s);
+  refreshSection(s);
+  renderList();
+  applySearch();
+  editing = false;
+  renderDetail();
+}
+
+popForm.addEventListener("submit", e => {
+  e.preventDefault();
+  saveFromPopup(popSpecies.value.trim(), popNote.value.trim());
 });
 document.getElementById("pop-cancel").onclick = closePopup;
 document.getElementById("pop-close").onclick = closePopup;
-document.getElementById("pop-clear").onclick = () => {
-  const s = popId && byId(popId);
-  if (!s) { closePopup(); return; }
-  s.species = ""; s.note = "";
-  closePopup();
-  commit(s);
-};
+document.getElementById("pop-clear").onclick = () => saveFromPopup("", "");
 pop.addEventListener("click", e => { if (e.target === pop) closePopup(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") closePopup(); });
 // keep keyboard focus inside the pop-up while it is open
 pop.addEventListener("keydown", e => {
   if (e.key !== "Tab") return;
-  const f = [...pop.querySelectorAll("button, input, textarea")].filter(x => !x.hidden && x.offsetParent !== null);
+  const f = [...pop.querySelectorAll("button:not(:disabled), input, textarea")].filter(x => !x.hidden && x.offsetParent !== null);
   if (!f.length) return;
   const first = f[0], last = f[f.length - 1];
   if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }

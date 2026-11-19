@@ -13,3 +13,9 @@ Napauta kohtaa kartalla ja kirjoita, mikä kasvi siinä kasvaa.
 3. Tee commit ja push – GitHub Pages päivittyy minuutissa.
 
 Google-taulukon yhteys: liitä Apps Script -verkkosovelluksen osoite (`…/exec`) `SHEETS_URL`-kohtaan tiedostossa `index.html`.
+
+## Perheen PIN-koodi
+
+Tallentaminen vaatii perheen PIN-koodin. Apps Script tarkistaa koodin, eikä koodi ole tässä julkisessa koodissa:
+se asetetaan Apps Scriptin *Projektin asetukset → Skriptin ominaisuudet* -kohtaan nimellä `PIN`.
+Sivu kysyy koodin kerran ja muistaa sen kyseisellä laitteella.
