@@ -150,6 +150,48 @@
   svg.map .sec.plants.selected .hit { stroke: var(--select); stroke-width: 3; stroke-dasharray: none; }
   svg.map .sec:focus-visible .shape, svg.map .sec.plants:focus-visible .hit { stroke: var(--focus); stroke-width: 4; stroke-dasharray: none; }
 
+  /* switching between houses: arrows, dots, swipe */
+  .house-nav {
+    max-width: 1180px; margin: 0 auto; padding-block: 6px 8px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px;
+  }
+  .house-nav a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); border-radius: 14px; min-height: 52px; min-width: 0; }
+  .hn-prev { justify-self: start; padding: 6px 14px 6px 8px; border: 1.5px solid var(--line); background: var(--surface); font-weight: 600; }
+  .hn-prev:hover { border-color: var(--accent); }
+  .hn-next { justify-self: end; padding: 6px 8px 6px 16px; background: var(--ink); color: var(--bg) !important; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+  .hn-next:hover { filter: brightness(1.15); }
+  .hn-label { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; text-align: right; }
+  .hn-label small { font-size: .72rem; font-weight: 600; opacity: .75; text-transform: uppercase; letter-spacing: .06em; }
+  .hn-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hn-arrow { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-size: 1.5rem; font-weight: 800; line-height: 1; }
+  .hn-prev .hn-arrow { background: var(--bg); }
+  .hn-next .hn-arrow { background: var(--bg); color: var(--ink); font-size: 1.8rem; }
+  .hn-dots { display: flex; gap: 7px; align-items: center; }
+  .hn-dots a { width: 12px; height: 12px; min-height: 0; border-radius: 50%; background: var(--line); padding: 0; }
+  .hn-dots a[aria-current="page"] { background: var(--ink); width: 26px; border-radius: 999px; }
+  @media (max-width: 560px) {
+    .house-nav { grid-template-columns: auto minmax(0, 1fr); row-gap: 8px; }
+    .hn-dots { grid-column: 1 / -1; grid-row: 2; justify-content: center; }
+    .hn-prev .hn-name { display: none; }
+    .hn-prev { padding: 6px; }
+  }
+  /* on phones and tablets a round arrow stays at the right edge while scrolling */
+  .edge-arrow {
+    position: fixed; right: max(8px, env(safe-area-inset-right, 0px)); top: 50%; z-index: 20; transform: translateY(-50%);
+    width: 50px; height: 50px; border-radius: 50%; display: none; place-items: center;
+    background: var(--ink); color: var(--bg); font-size: 1.8rem; font-weight: 800; text-decoration: none;
+    box-shadow: 0 6px 18px rgba(0,0,0,.28); opacity: .92;
+  }
+  @media (max-width: 899px) { .edge-arrow { display: grid; } }
+  @keyframes slide-from-right { from { transform: translateX(48px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes slide-from-left { from { transform: translateX(-48px); opacity: 0; } to { transform: none; opacity: 1; } }
+  main.slide-next { animation: slide-from-right .22s ease-out; }
+  main.slide-prev { animation: slide-from-left .22s ease-out; }
+  main.leaving-next { transform: translateX(-36px); opacity: 0; transition: transform .14s ease-in, opacity .14s ease-in; }
+  main.leaving-prev { transform: translateX(36px); opacity: 0; transition: transform .14s ease-in, opacity .14s ease-in; }
+  @media (prefers-reduced-motion: reduce) { main.slide-next, main.slide-prev { animation: none; } main.leaving-next, main.leaving-prev { transition: none; } }
+
   /* view buttons above the map: choose which kind to show */
   .view-bar { max-width: 1180px; margin: 0 auto; padding-block: 4px 6px;
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
@@ -306,6 +348,12 @@
     <span class="theme-label">Tumma</span>
   </button>
 </header>
+<nav class="house-nav" id="house-nav" aria-label="Vaihda kasvihuonetta">
+  <a class="hn-prev" id="hn-prev" href="#"><span class="hn-arrow" aria-hidden="true">←</span><span class="hn-name"></span></a>
+  <div class="hn-dots" id="hn-dots"></div>
+  <a class="hn-next" id="hn-next" href="#"><span class="hn-label"><small>Seuraava</small><span class="hn-name"></span></span><span class="hn-arrow" aria-hidden="true">→</span></a>
+</nav>
+<a class="edge-arrow" id="edge-next" href="#" aria-hidden="true" tabindex="-1">→</a>
 <nav class="view-bar" aria-label="Valitse, mitä kartalla näytetään">
   <div class="view-buttons" id="tabs"></div>
 </nav>
@@ -1131,6 +1179,85 @@ darkQuery.addEventListener("change", syncThemeButton);
 new MutationObserver(syncThemeButton).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 syncThemeButton();
 
+/* ---------------- switching houses ----------------
+   Houses in the order they stand on the yard, left to right. The arrow
+   (or a swipe, or the ← → keys) opens the next one; after the last it
+   wraps round to the first. */
+const HOUSE_ORDER = ["5", "1", "2", "3", "4"];
+const SLIDE_KEY = "alapiha-slide";
+function houseUrl(no) { return "kasvihuone.html?talo=" + no; }
+function neighbour(step) {
+  const i = HOUSE_ORDER.indexOf(HOUSE_NO);
+  return HOUSE_ORDER[(i + step + HOUSE_ORDER.length) % HOUSE_ORDER.length];
+}
+function goHouse(no, dir) {
+  if (no === HOUSE_NO) return;
+  try { sessionStorage.setItem(SLIDE_KEY, dir); } catch (e) { /* ignore */ }
+  const m = document.querySelector("main");
+  m.classList.add(dir === "prev" ? "leaving-prev" : "leaving-next");
+  setTimeout(() => { location.href = houseUrl(no); }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 130);
+}
+function setupHouseNav() {
+  const nav = document.getElementById("house-nav");
+  const edge = document.getElementById("edge-next");
+  if (window.claude) { nav.hidden = true; edge.hidden = true; return; }   // claude.ai copy has only one house
+  const next = neighbour(1), prev = neighbour(-1);
+  const nextA = document.getElementById("hn-next"), prevA = document.getElementById("hn-prev");
+  nextA.href = edge.href = houseUrl(next);
+  prevA.href = houseUrl(prev);
+  nextA.querySelector(".hn-name").textContent = HOUSE_NAMES[next];
+  prevA.querySelector(".hn-name").textContent = HOUSE_NAMES[prev];
+  nextA.setAttribute("aria-label", "Seuraava: " + HOUSE_NAMES[next]);
+  prevA.setAttribute("aria-label", "Edellinen: " + HOUSE_NAMES[prev]);
+  edge.title = "Seuraava: " + HOUSE_NAMES[next];
+  const go = (no, dir) => e => { e.preventDefault(); goHouse(no, dir); };
+  nextA.addEventListener("click", go(next, "next"));
+  edge.addEventListener("click", go(next, "next"));
+  prevA.addEventListener("click", go(prev, "prev"));
+  const dots = document.getElementById("hn-dots");
+  const here = HOUSE_ORDER.indexOf(HOUSE_NO);
+  HOUSE_ORDER.forEach((no, i) => {
+    const a = document.createElement("a");
+    a.href = houseUrl(no);
+    a.setAttribute("aria-label", HOUSE_NAMES[no]);
+    a.title = HOUSE_NAMES[no];
+    if (no === HOUSE_NO) a.setAttribute("aria-current", "page");
+    a.addEventListener("click", go(no, i < here ? "prev" : "next"));
+    dots.appendChild(a);
+  });
+
+  // swipe on the map: finger moves left → next house, right → previous
+  const area = document.querySelector("main");
+  let sw = null;
+  area.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse" && e.isPrimary) sw = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+  area.addEventListener("pointerup", e => {
+    if (!sw || e.pointerType === "mouse") return;
+    const dx = e.clientX - sw.x, dy = e.clientY - sw.y, dt = Date.now() - sw.t;
+    sw = null;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6 || dt > 700) return;
+    if (!pop.hidden) return;
+    dx < 0 ? goHouse(next, "next") : goHouse(prev, "prev");
+  });
+  area.addEventListener("pointercancel", () => { sw = null; });
+  // a sideways swipe should not scroll or zoom the page
+  document.getElementById("map").style.touchAction = "pan-y pinch-zoom";
+
+  // keyboard: ← → switch houses when not typing
+  document.addEventListener("keydown", e => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    if (!pop.hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "")) return;
+    e.key === "ArrowRight" ? goHouse(next, "next") : goHouse(prev, "prev");
+  });
+
+  // slide in from the side we came from
+  let dir = null;
+  try { dir = sessionStorage.getItem(SLIDE_KEY); sessionStorage.removeItem(SLIDE_KEY); } catch (e) { /* ignore */ }
+  if (dir === "next" || dir === "prev") document.querySelector("main").classList.add("slide-" + dir);
+  // coming back with the browser's back button: undo the fade-out
+  window.addEventListener("pageshow", () => document.querySelector("main").classList.remove("leaving-next", "leaving-prev"));
+}
+
 /* ---------------- init ---------------- */
 document.documentElement.lang = "fi";
 document.getElementById("page-title").textContent = HOUSE_NAME + " · Kasvikartta";
@@ -1138,6 +1265,7 @@ document.title = HOUSE_NAME + " · Alapihan Puutarha";
 // on claude.ai there is no yard page to go back to
 if (window.claude) document.getElementById("back").hidden = true;
 drawStatic();
+setupHouseNav();
 drawSections();
 sections.forEach(refreshSection);
 setTab(activeTab, false);
