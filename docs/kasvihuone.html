@@ -120,7 +120,12 @@
     margin: 2px 0 10px; text-align: center; font-size: clamp(1.6rem, 4.8vw, 2.4rem); font-weight: 300;
     color: var(--heading); line-height: 1.15;
   }
-  svg.map { display: block; width: 100%; height: auto; max-height: calc(100vh - 150px); margin: 0 auto; touch-action: manipulation; }
+  svg.map { display: block; width: 100%; height: auto; max-height: calc((100vh - 150px) * var(--map-scale, 1)); margin: 0 auto; touch-action: manipulation; }
+  /* phones: the whole house, its name and the legend fit on the screen you can actually see
+     (svh leaves out the browser's address bar and toolbar) */
+  @media (max-width: 700px) {
+    svg.map { max-height: calc((100vh - 200px) * var(--map-scale, 1)); max-height: calc((100svh - 200px) * var(--map-scale, 1)); }
+  }
 
   /* walls */
   .wall { fill: none; stroke: var(--wall); stroke-width: 6; stroke-linecap: round; }
@@ -829,7 +834,7 @@ function truncate(str, max) { return str.length > max ? str.slice(0, max - 1) + 
 function drawStatic() {
   svg.setAttribute("viewBox", `-24 -24 ${W + 48} ${H + 100}`);   // "-24 -24 832 1210" in Kasvihuone 1
   // smaller houses are drawn smaller than Kasvihuone 1 (never below 60 %, so they stay easy to tap)
-  if (!IS_ORIGINAL) svg.style.maxHeight = `calc((100vh - 150px) * ${Math.min(1, Math.max(0.6, (H + 100) / 1210)).toFixed(3)})`;
+  if (!IS_ORIGINAL) svg.style.setProperty("--map-scale", Math.min(1, Math.max(0.6, (H + 100) / 1210)).toFixed(3));
   el("rect", { x: 0, y: 0, width: W, height: H, class: "floor" }, svg);
   // walls with an entrance gap in the bottom wall
   el("path", { class: "wall", d: `M${DOOR[0]} ${H} H0 V0 H${W} V${H} H${DOOR[1]}` }, svg);
