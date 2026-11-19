@@ -660,7 +660,7 @@ const PIN_KEY = "alapiha-greenhouse-pin";  // family PIN, remembered on this dev
 function getPin() { if (window.PinGate) return PinGate.getPin(); try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
 function setPin(v) { if (window.PinGate) return PinGate.setPin(v); try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
 const loggerName = () => (window.PinGate ? PinGate.getName() : "");
-// no PIN yet (viewing only, or the site sat unused): show the opening screen once and wait
+// no PIN yet (the site sat unused, or the PIN changed): show the opening screen once and wait
 const askPin = reason => (window.PinGate ? PinGate.require(reason) : Promise.resolve(""));
 let sections = DEFAULT_SECTIONS.map(s => ({ ...s }));
 let mode = "local";       // "local" | "db" | "sheets" | "none"
@@ -735,13 +735,26 @@ function applyRemote(docs) {
   if (!editing) renderDetail();
 }
 
+/* Reading the sheet needs the PIN as well, so nobody outside the family can read it.
+   Returns null while the lock screen is waiting for the PIN. */
+async function fetchSections() {
+  const pin = getPin();
+  if (!pin) return null;
+  const res = await fetch(SHEETS_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "list", pin }) });
+  let out = await res.json();
+  if (!out.ok && out.error === "bad id") out = await (await fetch(SHEETS_URL + "?t=" + Date.now())).json(); // older script
+  if (!out.ok && out.error === "bad pin") { setPin(""); askPin("bad"); return null; }
+  if (!out.ok) throw new Error(out.error || "read failed");
+  return sections;
+}
 async function loadSheet() {
   const seq = writeSeq, busy = pendingSaves > 0;
-  const res = await fetch(SHEETS_URL + (SHEETS_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
-  const out = await res.json();
+  const sections = await fetchSections();
+  if (!sections) return false;
   // ignore a read that overlapped a save: it may show the sheet from before the save
   if (busy || pendingSaves || seq !== writeSeq) return;
-  const entries = Object.entries(out.sections || {})
+  const entries = Object.entries(sections)
     .filter(([id]) => id.startsWith(HOUSE_PREFIX))
     .map(([id, d]) => ({ id: id.slice(HOUSE_PREFIX.length), exists: true, data: () => d }));
   applyRemote(entries);
@@ -754,7 +767,7 @@ function connectSheets() {
   let ok = false;
   const tick = async () => {
     try {
-      await loadSheet();
+      if (await loadSheet() === false) { ok = false; setStatus("loading", "Kirjoita PIN-koodi, niin merkinnät näkyvät"); return; }
       if (!ok) setStatus("shared", "Merkinnät tallentuvat yhteiseen Google-taulukkoon ja näkyvät kaikille");
       ok = true;
     } catch (e) {
@@ -765,6 +778,7 @@ function connectSheets() {
   tick();
   setInterval(() => { if (!document.hidden) tick(); }, SHEETS_POLL_MS);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
+  window.addEventListener("pingate-open", () => tick());   // PIN given: show the plants at once
 }
 
 async function connectStore() {

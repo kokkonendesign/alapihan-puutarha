@@ -782,18 +782,31 @@ function setStatus(state, text) { statusEl.dataset.state = state; statusEl.textC
 function getPin() { if (window.PinGate) return PinGate.getPin(); try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
 function setPin(v) { if (window.PinGate) return PinGate.setPin(v); try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
 const loggerName = () => (window.PinGate ? PinGate.getName() : "");
-// no PIN yet (viewing only, or the site sat unused): show the opening screen once and wait
+// no PIN yet (the site sat unused, or the PIN changed): show the opening screen once and wait
 const askPin = reason => (window.PinGate ? PinGate.require(reason) : Promise.resolve(""));
 let pendingSaves = 0;
 let writeSeq = 0;          // bumped by every save, so an older sheet read can't undo it
 
+/* Reading the sheet needs the PIN as well, so nobody outside the family can read it.
+   Returns null while the lock screen is waiting for the PIN. */
+async function fetchSections() {
+  const pin = getPin();
+  if (!pin) return null;
+  const res = await fetch(SHEETS_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "list", pin }) });
+  let out = await res.json();
+  if (!out.ok && out.error === "bad id") out = await (await fetch(SHEETS_URL + "?t=" + Date.now())).json(); // older script
+  if (!out.ok && out.error === "bad pin") { setPin(""); askPin("bad"); return null; }
+  if (!out.ok) throw new Error(out.error || "read failed");
+  return sections;
+}
 async function loadSheet() {
   const seq = writeSeq, busy = pendingSaves > 0;
-  const res = await fetch(SHEETS_URL + "?t=" + Date.now());
-  const out = await res.json();
+  const sections = await fetchSections();
+  if (!sections) return false;
   // ignore a read that overlapped a save: it may show the sheet from before the save
   if (busy || pendingSaves || drag || seq !== writeSeq) return;
-  labels = out.sections || {};
+  labels = sections;
   refresh();
 }
 function connect() {
@@ -808,7 +821,7 @@ function connect() {
   let ok = false;
   const tick = async () => {
     try {
-      await loadSheet();
+      if (await loadSheet() === false) { ok = false; setStatus("loading", "Kirjoita PIN-koodi, niin merkinnät näkyvät"); return; }
       if (!ok) setStatus("shared", "Merkinnät tallentuvat yhteiseen Google-taulukkoon ja näkyvät kaikille");
       ok = true;
     } catch (e) {
@@ -819,6 +832,7 @@ function connect() {
   tick();
   setInterval(() => { if (!document.hidden) tick(); }, SHEETS_POLL_MS);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
+  window.addEventListener("pingate-open", () => tick());   // PIN given: show the plants at once
 }
 
 /* Save one row of the shared sheet: a plant label (P<no>) or a table position (L-P<no>). */

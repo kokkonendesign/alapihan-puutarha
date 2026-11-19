@@ -5,8 +5,9 @@
  * and saving plants or moving tables never asks again – until nobody has used
  * the site for IDLE_MIN minutes, when the lock screen comes back. The name is
  * saved with every change (the sheet's "Kirjaaja" column).
- * "Katsele ilman koodia" opens the site for viewing only; the first save then
- * shows the same lock screen once (PinGate.require()).
+ * The plants are only shown after the PIN: the Apps Script refuses to read the
+ * sheet without it, so the public code can't be used to read it either.
+ * When the PIN is accepted the page gets a "pingate-open" event.
  *
  * The PIN itself is checked by the Apps Script (PIN script property), never
  * stored in this public code. Pages call PinGate.init(SHEETS_URL) and use
@@ -15,7 +16,6 @@
 (function () {
   const PIN_KEY = "alapiha-greenhouse-pin";
   const ACTIVE_KEY = "alapiha-pin-active";    // last time someone used the site (ms)
-  const VIEW_KEY = "alapiha-view-only";       // chose "view without PIN" in this tab
   const NAME_KEY = "alapiha-kirjaaja";        // the logger's name, kept between visits
   const IDLE_MIN = 60;
   const IDLE_MS = IDLE_MIN * 60 * 1000;
@@ -23,10 +23,6 @@
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { /* ignore */ } },
-  };
-  const session = {
-    get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch (e) { /* ignore */ } },
   };
 
   let url = "", gate = null, active = false, waiting = [];   // waiting: require() calls to answer
@@ -39,14 +35,14 @@
   }
   function setPin(v) {
     store.set(PIN_KEY, v || null);
-    if (v) { store.set(ACTIVE_KEY, String(Date.now())); session.set(VIEW_KEY, null); }
+    if (v) store.set(ACTIVE_KEY, String(Date.now()));
   }
   function touch() {
     // throttle: write at most every 20 s
     if (getPin() && Date.now() - lastActive() > 20000) store.set(ACTIVE_KEY, String(Date.now()));
   }
   function getName() { return store.get(NAME_KEY) || ""; }
-  function needsGate() { return active && !getPin() && session.get(VIEW_KEY) !== "1"; }
+  function needsGate() { return active && !getPin(); }
 
   /* ---------- lock screen ---------- */
   function css() {
@@ -70,8 +66,6 @@
         border: 0; background: var(--pink, #f48fb1); color: var(--pink-ink, #fff); cursor: pointer; }
       .pin-card button.pin-open:hover { background: var(--pink-strong, #e2769c); }
       .pin-card button.pin-open:disabled { opacity: .6; cursor: progress; }
-      .pin-card button.pin-view { margin-top: 10px; font: inherit; font-size: .88rem; background: none; border: 0; color: var(--muted, #66705f);
-        text-decoration: underline; cursor: pointer; padding: 6px; }
     `;
     document.head.appendChild(st);
   }
@@ -90,7 +84,6 @@
         <input type="password" class="pin-input" id="pin-gate-pin" autocapitalize="off" spellcheck="false" enterkeyhint="go">
         <p class="pin-err" role="alert"></p>
         <button type="submit" class="pin-open">Avaa</button>
-        <button type="button" class="pin-view">Katsele ilman koodia</button>
       </form>`;
     document.body.appendChild(gate);
     const form = gate.querySelector("form");
@@ -111,7 +104,6 @@
       setPin(pin);
       hide(pin);
     });
-    gate.querySelector(".pin-view").addEventListener("click", () => { session.set(VIEW_KEY, "1"); hide(""); });
     // keep keyboard focus inside the lock screen
     gate.addEventListener("keydown", e => {
       if (e.key !== "Tab") return;
@@ -134,7 +126,7 @@
     } catch (e) { return "unknown"; }
   }
   const WHY = {
-    open: "Kirjoita nimesi ja PIN-koodi. Ne kysytään vain kerran, kunhan sivua käytetään.",
+    open: "Kartta on vain perheen käytössä. Kirjoita nimesi ja PIN-koodi – ne kysytään vain kerran, kunhan sivua käytetään.",
     idle: "Sivu oli pitkään käyttämättä. Kirjoita PIN-koodi uudelleen.",
     save: "Tallentaminen vaatii nimesi ja PIN-koodin. Ne kysytään vain kerran.",
     bad: "PIN-koodi on vaihtunut. Kirjoita uusi PIN-koodi.",
@@ -143,7 +135,6 @@
     if (!gate) build();
     if (!gate.hidden) return;
     gate.querySelector(".pin-why").textContent = WHY[reason] || WHY.open;
-    gate.querySelector(".pin-view").textContent = reason === "save" || reason === "bad" ? "Peruuta" : "Katsele ilman koodia";
     gate.querySelector(".pin-err").textContent = "";
     gate.querySelector(".pin-input").value = "";
     const nameIn = gate.querySelector(".pin-name");
@@ -155,9 +146,10 @@
     if (gate) gate.hidden = true;
     const w = waiting; waiting = [];
     w.forEach(resolve => resolve(pin || ""));
+    if (pin) window.dispatchEvent(new Event("pingate-open"));
   }
   /* For a save without a PIN: show the lock screen and wait.
-     Resolves with the PIN, or "" if the person pressed Peruuta. */
+     Resolves with the PIN once it is given. */
   function require(reason) {
     const pin = getPin();
     if (pin) return Promise.resolve(pin);

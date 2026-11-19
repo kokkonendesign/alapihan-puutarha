@@ -13,7 +13,7 @@
  *     (Koodin vaihto: muuta vain PIN-ominaisuuden arvo – uutta käyttöönottoa ei tarvita.)
  *     Koodi on vain täällä, ei julkisessa GitHub-koodissa.
  *
- * The map reads all labels with GET and saves one label with POST.
+ * The map reads all labels and saves one label with POST; both need the PIN.
  * Each section is one row on the "Kasvit" sheet; you can also edit
  * the plant and notes columns straight in the spreadsheet.
  */
@@ -42,15 +42,21 @@ function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-/** GET → { ok: true, sections: { "T4-S3": { species, note }, ... } } */
+/** Reading the plants needs the PIN too, so the map's public code can't be used
+ *  to read the sheet. GET only answers that a PIN is needed. */
 function doGet() {
+  return json_({ ok: false, error: "pin required" });
+}
+
+/** { sections: { "T4-S3": { species, note }, ... } } – all labels, for the map. */
+function sections_() {
   const sheet = getSheet_();
   const rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues() : [];
   const sections = {};
   rows.forEach(([id, , species, note]) => {
     if (id) sections[String(id)] = { species: String(species || ""), note: String(note || "") };
   });
-  return json_({ ok: true, sections });
+  return sections;
 }
 
 /** True when the family PIN sent by the map matches the PIN script property. */
@@ -60,7 +66,8 @@ function pinOk_(pin) {
 }
 
 /** POST body (text/plain JSON): { id, name, species, note, pin, by } → upserts that section's row.
- *  { action: "check", pin } only checks the PIN (the map's opening screen). */
+ *  { action: "check", pin } only checks the PIN (the map's opening screen).
+ *  { action: "list", pin } returns all labels: { ok: true, sections }. */
 function doPost(e) {
   let data;
   try {
@@ -71,6 +78,7 @@ function doPost(e) {
   // a wrong PIN waits a moment, so guessing the code is slow
   if (!pinOk_(data.pin)) { Utilities.sleep(1500); return json_({ ok: false, error: "bad pin" }); }
   if (data.action === "check") return json_({ ok: true, checked: true });
+  if (data.action === "list") return json_({ ok: true, sections: sections_() });
   const id = String(data.id || "").trim();
   if (!/^[A-Za-z0-9-]{1,20}$/.test(id)) return json_({ ok: false, error: "bad id" });
   // a leading ' keeps text like "=..." from being run as a spreadsheet formula

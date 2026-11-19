@@ -21,7 +21,8 @@ Google-taulukon yhteys: liitä Apps Script -verkkosovelluksen osoite (`…/exec`
 
 Kun sivu avataan, se kysyy kerran **kirjaajan nimen** ja **perheen PIN-koodin** (`pin-gate.js`). Ne muistetaan
 laitteella, kunnes sivua ei ole käytetty tuntiin; silloin PIN kysytään uudelleen. Nimi tallentuu jokaisen
-merkinnän viereen taulukon **Kirjaaja**-sarakkeeseen. "Katsele ilman koodia" avaa sivun katseltavaksi.
+merkinnän viereen taulukon **Kirjaaja**-sarakkeeseen. Kasvit näkyvät vasta PIN-koodin jälkeen: Apps Script
+ei näytä taulukon tietoja ilman koodia.
 
 Apps Script tarkistaa koodin, eikä koodi ole tässä julkisessa koodissa: se asetetaan Apps Scriptin
 *Projektin asetukset → Skriptin ominaisuudet* -kohtaan nimellä `PIN`. Koodin vaihtamiseen riittää muuttaa arvo.
