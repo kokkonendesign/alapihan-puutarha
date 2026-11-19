@@ -642,7 +642,8 @@ const askPin = reason => (window.PinGate ? PinGate.require(reason) : Promise.res
 let sections = DEFAULT_SECTIONS.map(s => ({ ...s }));
 let mode = "local";       // "local" | "db" | "sheets" | "none"
 let pendingSaves = 0;
-let writeSeq = 0;          // bumped by every save, so an older sheet read can't undo it
+let writeSeq = 0;
+const rowQueue = {};       // id → promise of the save in progress for that spot          // bumped by every save, so an older sheet read can't undo it
 let canWrite = true;
 let db = null;
 
@@ -664,7 +665,12 @@ async function persist(s, pin) {
     return;
   }
   if (mode === "sheets") {
+    // saves of the same spot go out one after another, in order
     pendingSaves++; writeSeq++;
+    const prev = rowQueue[s.id] || Promise.resolve();
+    let release;
+    rowQueue[s.id] = new Promise(r => { release = r; });
+    await prev;
     try {
       // text/plain keeps this a "simple" request, which Apps Script accepts from any site
       const res = await fetch(SHEETS_URL, {
@@ -680,6 +686,7 @@ async function persist(s, pin) {
       }
     } finally {
       pendingSaves--;
+      release();
     }
     return;
   }
@@ -706,11 +713,11 @@ function applyRemote(docs) {
 }
 
 async function loadSheet() {
-  const seq = writeSeq;
+  const seq = writeSeq, busy = pendingSaves > 0;
   const res = await fetch(SHEETS_URL + (SHEETS_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
   const out = await res.json();
-  // don't overwrite a label that is being saved, or was saved after this read began
-  if (pendingSaves || seq !== writeSeq) return;
+  // ignore a read that overlapped a save: it may show the sheet from before the save
+  if (busy || pendingSaves || seq !== writeSeq) return;
   const entries = Object.entries(out.sections || {})
     .filter(([id]) => id.startsWith(HOUSE_PREFIX))
     .map(([id, d]) => ({ id: id.slice(HOUSE_PREFIX.length), exists: true, data: () => d }));

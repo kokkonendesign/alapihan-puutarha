@@ -727,10 +727,11 @@ let pendingSaves = 0;
 let writeSeq = 0;          // bumped by every save, so an older sheet read can't undo it
 
 async function loadSheet() {
-  const seq = writeSeq;
+  const seq = writeSeq, busy = pendingSaves > 0;
   const res = await fetch(SHEETS_URL + "?t=" + Date.now());
   const out = await res.json();
-  if (pendingSaves || drag || seq !== writeSeq) return;   // don't jump a table back while it is being moved or saved
+  // ignore a read that overlapped a save: it may show the sheet from before the save
+  if (busy || pendingSaves || drag || seq !== writeSeq) return;
   labels = out.sections || {};
   refresh();
 }
@@ -760,13 +761,23 @@ function connect() {
 }
 
 /* Save one row of the shared sheet: a plant label (P<no>) or a table position (L-P<no>). */
-async function postRow(id, name, species, note, pin) {
+/* Saves of the same row go out one after another, in the order they were made,
+   so a quick "move, then remove" can never land in the sheet the wrong way round. */
+const rowQueue = {}, rowLatest = {};   // rowLatest: the newest value asked for each row
+function postRow(id, name, species, note, pin) {
   if (mode !== "sheets") {
     labels[id] = { species, note };
     try { localStorage.setItem(LOCAL_KEY, JSON.stringify(labels)); } catch (e) { /* ignore */ }
-    return;
+    return Promise.resolve();
   }
-  pendingSaves++; writeSeq++;
+  pendingSaves++; writeSeq++;          // counted from now, so no sheet read is applied while it waits its turn
+  rowLatest[id] = { species, note };
+  const run = () => sendRow(id, name, species, note, pin);
+  const p = (rowQueue[id] || Promise.resolve()).catch(() => {}).then(run);
+  rowQueue[id] = p;
+  return p;
+}
+async function sendRow(id, name, species, note, pin) {
   try {
     const res = await fetch(SHEETS_URL, {
       method: "POST",
@@ -775,7 +786,7 @@ async function postRow(id, name, species, note, pin) {
     });
     const out = await res.json();
     if (!out.ok) { const err = new Error(out.error || "save failed"); if (out.error === "bad pin") err.code = "bad_pin"; throw err; }
-    labels[id] = { species, note };
+    labels[id] = rowLatest[id] || { species, note };   // an older save finishing never undoes a newer change
   } finally {
     pendingSaves--;
   }
