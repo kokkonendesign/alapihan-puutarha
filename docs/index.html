@@ -258,6 +258,9 @@
   .ot:hover .top, .ot:focus-visible .top, .ot.selected .top { fill: var(--gh-hover-2); }
   .ot:hover .num circle, .ot:focus-visible .num circle, .ot.selected .num circle { fill: var(--accent); }
   .ot:focus-visible .top { stroke: var(--focus); stroke-width: 4; }
+  .ot .top { transition: fill .15s; }
+  .ot.pressing .top { fill: var(--pink); transition: fill .5s ease-in; }
+  .ot.pressing .num circle { fill: var(--pink-strong); transition: fill .5s ease-in; }
 
   .hut .body { fill: var(--hut); stroke: var(--outline); stroke-width: 3; }
   .hut .rib { stroke: var(--outline); stroke-width: 1.2; opacity: .35; }
@@ -308,7 +311,7 @@
 <header>
   <div class="head-text">
     <h1 class="logo-h1"><img class="logo" src="logo.png" alt="Alapihan Puutarha" width="720" height="390"></h1>
-    <p>Napauta kasvihuonetta tai tilaushuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille voit kirjoittaa kasvin suoraan.</p>
+    <p>Napauta kasvihuonetta tai tilaushuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille voit kirjoittaa kasvin suoraan. Pöydän voi poistaa pitämällä sitä pohjassa.</p>
     <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
   </div>
   <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Vaihda tummaan tilaan">
@@ -374,6 +377,7 @@
         <button type="submit" class="primary">Tallenna</button>
         <button type="button" id="pop-cancel">Peruuta</button>
         <button type="button" id="pop-clear" class="danger">Tyhjennä</button>
+        <button type="button" id="pop-remove" class="danger">Poista pöytä</button>
       </div>
     </form>
   </div>
@@ -647,12 +651,17 @@ function drawTable(t) {
   el("circle", { cx: f(bx), cy: f(by), r: 13 }, num);
   el("text", { x: f(bx), y: f(by) }, num).textContent = t.no;
 
-  g.addEventListener("click", () => { if (!editing) openPopup(t.no); });
+  g.addEventListener("click", () => { if (!editing && !suppressClick) openPopup(t.no); });
   g.addEventListener("keydown", e => {
     if (editing) { nudge(e, t.no); return; }
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPopup(t.no); }
   });
-  g.addEventListener("pointerdown", e => startDrag(e, t.no, g));
+  g.addEventListener("pointerdown", e => { startDrag(e, t.no, g); startPress(e, t.no, g); });
+  g.addEventListener("pointermove", movePress);
+  g.addEventListener("pointerup", cancelPress);
+  g.addEventListener("pointercancel", cancelPress);
+  g.addEventListener("pointerleave", cancelPress);
+  g.addEventListener("contextmenu", e => e.preventDefault());   // no phone menu on a long press
   g.addEventListener("pointermove", e => {
     if (editing) return;
     const d = labels[tableId(t.no)];
@@ -841,6 +850,7 @@ async function saveFromPopup(species, note) {
 popForm.addEventListener("submit", e => { e.preventDefault(); saveFromPopup(popSpecies.value.trim(), popNote.value.trim()); });
 document.getElementById("pop-clear").onclick = () => saveFromPopup("", "");
 document.getElementById("pop-cancel").onclick = closePopup;
+document.getElementById("pop-remove").onclick = () => { const no = popNo; closePopup(); if (no) deleteTable(no); };
 document.getElementById("pop-close").onclick = closePopup;
 pop.addEventListener("click", e => { if (e.target === pop) closePopup(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") closePopup(); });
@@ -1016,19 +1026,44 @@ document.getElementById("t-add").onclick = () => {
   selectTable(t.no);
   setStatus(statusEl.dataset.state, `${tableName(t.no)} lisätty. Vedä se oikealle paikalle.`);
 };
-document.getElementById("t-del").onclick = async () => {
-  const t = selNo && tableByNo(selNo);
+/* Remove a table: asks first, then saves it as removed (row "L-P<no>") and clears
+   its plant label. Used by edit mode, a long press on the table and the pop-up. */
+async function deleteTable(no) {
+  const t = tableByNo(no);
   if (!t) return;
-  const d = labels[tableId(t.no)];
+  const d = labels[tableId(no)];
   const extra = d && (d.species || d.note) ? ` Sen kasvimerkintä (${d.species || "muistiinpano"}) poistetaan myös.` : "";
-  if (!confirm(`Poistetaanko ${tableName(t.no)}?${extra}`)) return;
-  selectTable(null);
+  if (!confirm(`Poistetaanko ${tableName(no)}?${extra}`)) return;
+  if (mode === "sheets" && !getPin() && !(await askPin("save"))) return;
+  if (selNo === no) selectTable(null);
   await saveLayout(t, true);
   if (extra) {
-    try { await postRow(tableId(t.no), tableName(t.no) + " (piha)", "", "", getPin()); labels[tableId(t.no)] = { species: "", note: "" }; refresh(); }
+    try { await postRow(tableId(no), tableName(no) + " (piha)", "", "", getPin()); labels[tableId(no)] = { species: "", note: "" }; refresh(); }
     catch (e) { /* the table is gone; its old label stays in the sheet */ }
   }
-};
+  setStatus(statusEl.dataset.state, `${tableName(no)} poistettu. Uuden pöydän saa "Muokkaa ulkopöytiä" → "Lisää pöytä".`);
+}
+document.getElementById("t-del").onclick = () => { if (selNo) deleteTable(selNo); };
+
+/* Long press on a table (finger or mouse, about half a second) offers to remove it. */
+const LONG_PRESS_MS = 550;
+let press = null, suppressClick = false;
+function startPress(e, no, g) {
+  if (editing || (e.pointerType === "mouse" && e.button !== 0)) return;
+  cancelPress();
+  g.classList.add("pressing");
+  press = { no, g, x: e.clientX, y: e.clientY, timer: setTimeout(() => {
+    const p = press; press = null;
+    p.g.classList.remove("pressing");
+    suppressClick = true;              // the click after letting go must not open the pop-up
+    setTimeout(() => { suppressClick = false; }, 600);
+    if (navigator.vibrate) navigator.vibrate(30);
+    hideTip();
+    deleteTable(p.no);
+  }, LONG_PRESS_MS) };
+}
+function movePress(e) { if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) cancelPress(); }
+function cancelPress() { if (!press) return; clearTimeout(press.timer); press.g.classList.remove("pressing"); press = null; }
 
 /* ---------------- init ---------------- */
 document.documentElement.lang = "fi";
