@@ -210,9 +210,6 @@
   .tree .crown-2 { fill: var(--tree-2); }
   .tree .hi { fill: var(--tree-hi); }
   .shadow { fill: var(--shadow); }
-  .compass circle { fill: var(--surface); stroke: var(--outline); stroke-width: 2.5; }
-  .compass path { fill: var(--select); stroke: var(--outline); stroke-width: 1.5; stroke-linejoin: round; }
-  .compass text { fill: var(--ink); font-size: 15px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
 
   /* greenhouses */
   .gh { cursor: pointer; outline: none; }
@@ -266,7 +263,7 @@
   .quick a:hover { border-color: var(--accent); background: var(--accent-soft); }
   .quick a b { font-size: 1rem; }
   .quick a span { font-size: .8rem; color: var(--muted); }
-  .chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .chips button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 10px; min-width: 0; text-align: left; }
   .chips button b { font-size: .95rem; }
   .chips button span { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
@@ -276,7 +273,7 @@
 <header>
   <div class="head-text">
     <h1>Alapihan Puutarha</h1>
-    <p>Napauta kasvihuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille 1–8 voit kirjoittaa kasvin suoraan.</p>
+    <p>Napauta kasvihuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille 1–9 voit kirjoittaa kasvin suoraan.</p>
     <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
   </div>
   <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Vaihda tummaan tilaan">
@@ -288,7 +285,7 @@
 
 <main>
   <section class="yard-wrap" aria-label="Piha ylhäältä katsottuna">
-    <svg class="yard" id="yard" viewBox="-120 425 900 985" role="group" aria-label="Alapihan Puutarhan piha: neljä kasvihuonetta, ulkopöydät 1–8 ja lampi"></svg>
+    <svg class="yard" id="yard" viewBox="-120 425 900 985" role="group" aria-label="Alapihan Puutarhan piha: neljä kasvihuonetta, ulkopöydät 1–9 ja lampi"></svg>
     <div class="tip" id="tip" role="presentation"></div>
   </section>
 
@@ -379,9 +376,11 @@ const TABLES = [
   { no: "6", parts: [[592, 770, 15, 175]] },
   { no: "7", parts: [[640, 1035, 14, 62], [612, 1083, 42, 14]] },
   { no: "8", parts: [[180, 884, 52, 14]] },
+  // on the grass between greenhouse 2 and the lake, turned diagonally
+  { no: "9", parts: [[147, 983, 70, 14]], rotate: [-30, 182, 990] },
 ];
 /* where each table's number badge sits */
-const BADGE = { "1": [301, 870], "2": [341, 674], "3": [347, 911], "4": [409, 744], "5": [481, 985], "6": [599, 754], "7": [668, 1066], "8": [206, 870] };
+const BADGE = { "1": [301, 870], "2": [341, 674], "3": [347, 911], "4": [409, 744], "5": [481, 985], "6": [599, 754], "7": [668, 1066], "8": [206, 870], "9": [238, 1001] };
 /* trees (local frame): x, y, size */
 const TREES = [
   [-92, 470, 34], [-60, 450, 26], [-98, 560, 30], [-96, 640, 24], [-100, 860, 30], [-70, 905, 22], [-98, 960, 26],
@@ -456,8 +455,8 @@ function drawGround() {
   el("rect", { class: "grass", x: -400, y: 0, width: 1600, height: 1800 }, svg);
   // roads first, gravel yard over them
   const roads = [WORLD.roadLoop, WORLD.roadNorth, WORLD.roadEast, WORLD.roadSouth].map(r => smooth(local(r), false));
-  roads.forEach(d => el("path", { class: "road-edge", d, "stroke-width": 50 }, svg));
-  roads.forEach(d => el("path", { class: "road", d, "stroke-width": 44 }, svg));
+  roads.forEach(d => el("path", { class: "road-edge", d, "stroke-width": 46 }, svg));
+  roads.forEach(d => el("path", { class: "road", d, "stroke-width": 40 }, svg));
   el("path", { class: "gravel", d: smooth(local(WORLD.yard)) }, svg);
   el("path", { class: "bank", d: smooth(local(WORLD.bank)) }, svg);
 
@@ -473,12 +472,6 @@ function drawGround() {
 
   TREES.forEach(t => drawTree(t, svg));
 
-  // compass: north on the photo points up; turned with the yard it leans 33° right
-  const cg = el("g", { class: "compass", transform: "translate(712 1170)", "aria-hidden": "true" }, svg);
-  el("circle", { r: 26 }, cg);
-  el("path", { d: "M0,-19 L7,4 L0,0 L-7,4 Z", transform: "rotate(33)" }, cg);
-  const nt = el("text", { x: f(Math.sin(33 * Math.PI / 180) * 40), y: f(-Math.cos(33 * Math.PI / 180) * 40) }, cg);
-  nt.textContent = "P";
 }
 
 function drawHut() {
@@ -542,26 +535,28 @@ function drawHouse(hs) {
 
 function drawTable(t) {
   const g = el("g", { class: "ot", tabindex: 0, role: "button", "data-no": t.no }, svg);
+  // a turned table draws its top inside a rotated group; the number badge stays upright
+  const body = t.rotate ? el("g", { transform: `rotate(${t.rotate.join(" ")})` }, g) : g;
   t.parts.forEach(([x, y, w, h]) => {
-    el("rect", { class: "hit", x: x - 12, y: y - 12, width: w + 24, height: h + 24 }, g);
+    el("rect", { class: "hit", x: x - 12, y: y - 12, width: w + 24, height: h + 24 }, body);
   });
   t.parts.forEach(([x, y, w, h]) => {
-    el("rect", { class: "shadow", x: x + 4, y: y + 4, width: w, height: h, rx: 3 }, g);
+    el("rect", { class: "shadow", x: x + 4, y: y + 4, width: w, height: h, rx: 3 }, body);
   });
   const pots = el("g", {}, null);
   t.parts.forEach(([x, y, w, h]) => {
-    el("rect", { class: "top", x, y, width: w, height: h, rx: 3 }, g);
+    el("rect", { class: "top", x, y, width: w, height: h, rx: 3 }, body);
     const along = w > h;
     for (let k = 1; k < 3; k++) {
-      if (along) el("line", { class: "plank", x1: x + 3, x2: x + w - 3, y1: y + h * k / 3, y2: y + h * k / 3 }, g);
-      else el("line", { class: "plank", y1: y + 3, y2: y + h - 3, x1: x + w * k / 3, x2: x + w * k / 3 }, g);
+      if (along) el("line", { class: "plank", x1: x + 3, x2: x + w - 3, y1: y + h * k / 3, y2: y + h * k / 3 }, body);
+      else el("line", { class: "plank", y1: y + 3, y2: y + h - 3, x1: x + w * k / 3, x2: x + w * k / 3 }, body);
     }
     const len = along ? w : h;
     for (let p = 9; p < len - 6; p += 14) {
       el("circle", { class: "pot", cx: along ? x + p : x + w / 2, cy: along ? y + h / 2 : y + p, r: 4.5 }, pots);
     }
   });
-  g.appendChild(pots);
+  body.appendChild(pots);
   const [bx, by] = BADGE[t.no];
   const num = el("g", { class: "num" }, g);
   el("circle", { cx: bx, cy: by, r: 13 }, num);
