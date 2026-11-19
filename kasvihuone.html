@@ -370,18 +370,18 @@
    page are saved in this browser on top of these defaults.
 ------------------------------------------------------------------- */
 /* Which greenhouse this is: kasvihuone.html?talo=1…5 (opened from the yard page).
-   Greenhouse 2 keeps the original codes (T4-S1…); the others get a prefix
+   Kasvihuone 1 (talo=2) keeps the original codes (T4-S1…); the others get a prefix
    (K1-T4-S1…), so all four share one spreadsheet without mixing up. */
 const HOUSES = { "1": "K1-", "2": "", "3": "K3-", "4": "K4-", "5": "K5-" };
-const HOUSE_NAMES = { "1": "Tilaushuone 1", "2": "Kasvihuone 2", "3": "Kasvihuone 3", "4": "Kasvihuone 4", "5": "Tilaushuone 2" };
+const HOUSE_NAMES = { "1": "Tilaushuone 1", "2": "Kasvihuone 1", "3": "Kasvihuone 3", "4": "Kasvihuone 4", "5": "Tilaushuone 2" };
 const HOUSE_NO = (() => { try { const n = new URLSearchParams(location.search).get("talo"); return n in HOUSES ? n : "2"; } catch (e) { return "2"; } })();
 const HOUSE_PREFIX = HOUSES[HOUSE_NO];
 const HOUSE_NAME = HOUSE_NAMES[HOUSE_NO];
-const IS_ORIGINAL = HOUSE_NO === "2";   // Kasvihuone 2: the hand-traced layout below, unchanged
+const IS_ORIGINAL = HOUSE_NO === "2";   // Kasvihuone 1 (talo=2): the hand-traced layout below, unchanged
 
 /* The other houses: a floor plan with the same proportions as the house seen
    from above on the yard page (outer width × length there), scaled the same
-   way as Kasvihuone 2 (156 × 385 there → 784 × 1110 here). Tables run front
+   way as Kasvihuone 1 (156 × 385 there → 784 × 1110 here). Tables run front
    to back with walkways between them; a wide house also gets floor strips
    (Lattia) and outermost kukkakourut along its walls. */
 const OUTER = { "1": [70, 336], "3": [120, 449], "4": [76, 260], "5": [42, 132] };
@@ -442,7 +442,7 @@ function partWhere(t, n) {
   return " (keskellä)";
 }
 
-// Kasvihuone 2's own extra sections
+// Kasvihuone 1 (talo=2) own extra sections
 const ORIGINAL_EXTRAS = [
   { id: "T1-1", kind: "lane", group: "Kukkakourut pöydällä T1", name: "Kukkakouru, pöytä T1", species: "", note: "" },
   { id: "T2-1", kind: "lane", group: "Kukkakourut pöydällä T2", name: "Kukkakouru, pöytä T2", species: "", note: "" },
@@ -496,8 +496,8 @@ const TABS = [
 
 /* Geometry, traced from the hand sketch (units are SVG viewBox units). */
 const range = (n, a, b) => Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));
-const W = LAYOUT.W, H = LAYOUT.H;  // inner width/height of the greenhouse (784 × 1110 in Kasvihuone 2)
-const DOOR = [W / 2 - 50, W / 2 + 50];   // entrance gap in the front wall ([342, 442] in Kasvihuone 2)
+const W = LAYOUT.W, H = LAYOUT.H;  // inner width/height of the greenhouse (784 × 1110 in Kasvihuone 1)
+const DOOR = [W / 2 - 50, W / 2 + 50];   // entrance gap in the front wall ([342, 442] in Kasvihuone 1)
 // extra floor added outside the original sketch on the left and right,
 // where the outermost kukkakourut (reunimmaiset) run along the walls
 const EDGE_LANE_X = 25, EDGE_LANE_W = 12;
@@ -557,7 +557,7 @@ for (const t of TABLES.filter(t => t.dir === "h")) {
   const [x, y, w, h] = t.rect, cy = y + 10;
   GEOM[`${t.id}-1`] = { rect: [x + 10, cy - LINE_W / 2, w - 20, LINE_W], hit: [x + 6, cy - LINE_HIT_W / 2, w - 12, LINE_HIT_W] };
 }
-// kukkakouru along the front wall, left of the entrance (Kasvihuone 2 only)
+// kukkakouru along the front wall, left of the entrance (Kasvihuone 1 only)
 if (IS_ORIGINAL) GEOM.KE = { rect: [12, 1078, DOOR[0] - 10 - 12, EDGE_LANE_W], hit: [8, 1072, DOOR[0] - 6 - 8, EDGE_LANE_W + 12] };
 // outermost kukkakourut along the left and right walls, same length as the long tables
 if (LAYOUT.floors) for (const [id, cx] of [["KR-L", EDGE_LANE_X], ["KR-R", W - EDGE_LANE_X]]) {
@@ -736,8 +736,8 @@ const el = (tag, attrs = {}, parent) => {
 function truncate(str, max) { return str.length > max ? str.slice(0, max - 1) + "…" : str; }
 
 function drawStatic() {
-  svg.setAttribute("viewBox", `-24 -24 ${W + 48} ${H + 100}`);   // "-24 -24 832 1210" in Kasvihuone 2
-  // smaller houses are drawn smaller than Kasvihuone 2 (never below 60 %, so they stay easy to tap)
+  svg.setAttribute("viewBox", `-24 -24 ${W + 48} ${H + 100}`);   // "-24 -24 832 1210" in Kasvihuone 1
+  // smaller houses are drawn smaller than Kasvihuone 1 (never below 60 %, so they stay easy to tap)
   if (!IS_ORIGINAL) svg.style.maxHeight = `calc((100vh - 150px) * ${Math.min(1, Math.max(0.6, (H + 100) / 1210)).toFixed(3)})`;
   el("rect", { x: 0, y: 0, width: W, height: H, class: "floor" }, svg);
   // walls with an entrance gap in the bottom wall

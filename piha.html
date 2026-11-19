@@ -423,7 +423,7 @@ const WORLD = {
 const HOUSES = [
   { no: "1", kind: "Tilaushuone", label: "1", rect: [27, 532, 70, 336], labelAt: .3 },   // name card higher, clear of Tilaushuone 2's
   { no: "5", kind: "Tilaushuone", label: "2", rect: [-57, 670, 42, 132] },   // the little greenhouse on the far left
-  { no: "2", kind: "Kasvihuone", label: "2", rect: [170, 490, 156, 385] },
+  { no: "2", kind: "Kasvihuone", label: "1", rect: [170, 490, 156, 385] },
   { no: "3", kind: "Kasvihuone", label: "3", rect: [421, 543, 120, 449], noArrow: true },   // table 5 sits right at its door
   { no: "4", kind: "Kasvihuone", label: "4", rect: [615, 691, 76, 260] },
 ];
@@ -437,7 +437,7 @@ const KASSA = [548, 1048, 56, 44];      // cashier
 const DEFAULT_TABLES = [
   { no: "1", x: 301, y: 891, r: 0, parts: [[-35, -7, 70, 14]] },
   { no: "2", x: 341.5, y: 775, r: 0, parts: [[-7.5, -85, 15, 170]] },
-  // between greenhouse 2 and the lake, lying along the sandy road
+  // between Kasvihuone 1 and the lake, lying along the sandy road
   { no: "3", x: 215, y: 957, r: 15, parts: [[-92.5, -7.5, 185, 15]], badge: [0, 32] },
   { no: "4", x: 409.5, y: 852.5, r: 0, parts: [[-7.5, -92.5, 15, 185]] },
   { no: "5", x: 481, y: 1006, r: 0, parts: [[-56, -7, 112, 14]] },
@@ -496,7 +496,7 @@ function plantedCount(houseNo) {
   return Object.entries(labels).filter(([id, d]) => {
     if (!d.species) return false;
     if (pfx) return id.startsWith(pfx);
-    return !/^K\d-/.test(id) && !/^P\d+$/.test(id);   // greenhouse 2 keeps the original codes
+    return !/^K\d-/.test(id) && !/^P\d+$/.test(id);   // Kasvihuone 1 (talo=2) keeps the original codes
   }).length;
 }
 
