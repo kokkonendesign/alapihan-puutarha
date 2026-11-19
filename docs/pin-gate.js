@@ -82,7 +82,7 @@
     gate.hidden = true;
     gate.innerHTML = `
       <form class="pin-card" role="dialog" aria-modal="true" aria-labelledby="pin-gate-title" autocomplete="off">
-        <h2 id="pin-gate-title" class="pin-title"><img class="pin-logo" src="logo.png" alt="Alapihan Puutarha" width="720" height="394"></h2>
+        <h2 id="pin-gate-title" class="pin-title"><img class="pin-logo" src="logo.png" alt="Alapihan Puutarha" width="720" height="390"></h2>
         <p class="pin-why"></p>
         <label class="pin-label" for="pin-gate-name">Kirjaajan nimi</label>
         <input type="text" class="pin-name" id="pin-gate-name" maxlength="40" autocomplete="given-name" enterkeyhint="next">
