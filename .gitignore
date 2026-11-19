@@ -4,3 +4,7 @@
 reference/
 .claude/
 .DS_Store
+
+# reference photos (kept private)
+*.jpeg
+*.png

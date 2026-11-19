@@ -1,18 +1,21 @@
 # Alapihan Puutarha · Kasvihuonekartta
 
-Interaktiivinen kartta Alapihan kasvihuoneesta: pöydät, kukkakourut, amppelit ja lattia.
-Napauta kohtaa kartalla ja kirjoita, mikä kasvi siinä kasvaa.
+Interaktiivinen kartta Alapihan Puutarhasta.
 
-- **Sivu:** `docs/index.html` (GitHub Pages)
+- **Etusivu (`piha.html` → `docs/index.html`):** piha ylhäältä katsottuna. Kasvihuoneet, lampi ja ulkopöydät 1–8 ovat
+  samoilla paikoilla kuin Google Mapsin ilmakuvassa (käännetty 33°, jotta kasvihuoneet ovat pystyssä).
+  Kasvihuonetta napauttamalla pääsee sisälle, ulkopöydälle voi kirjoittaa kasvin suoraan.
+- **Kasvikartta (`kasvihuone.html?talo=1…4` → `docs/kasvihuone.html`):** pöydät, kukkakourut, amppelit ja lattia.
+  Kasvihuone 2 käyttää alkuperäisiä koodeja (T4-S1…), muut etuliitettä (K1-, K3-, K4-). Ulkopöydät ovat P1–P8.
 - **Merkinnät:** jaettu Google-taulukko, johon sivu yhdistää Apps Script -verkkosovelluksen kautta (`apps-script/Code.gs`)
 
 ## Muokkaaminen
 
-1. Muokkaa `index.html` (sama tiedosto julkaistaan myös claude.ai-sivuna).
-2. Aja `python3 build.py`, joka päivittää `docs/index.html`.
+1. Muokkaa `piha.html` tai `kasvihuone.html`.
+2. Aja `python3 build.py`, joka päivittää `docs/`-kansion.
 3. Tee commit ja push – GitHub Pages päivittyy minuutissa.
 
-Google-taulukon yhteys: liitä Apps Script -verkkosovelluksen osoite (`…/exec`) `SHEETS_URL`-kohtaan tiedostossa `index.html`.
+Google-taulukon yhteys: liitä Apps Script -verkkosovelluksen osoite (`…/exec`) `SHEETS_URL`-kohtaan tiedostoissa `piha.html` ja `kasvihuone.html`.
 
 ## Perheen PIN-koodi
 

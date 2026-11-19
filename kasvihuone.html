@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Alapihan kasvihuonekartta</title>
+<title>Kasvihuoneen kasvikartta · Alapihan Puutarha</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
@@ -81,6 +81,8 @@
   .theme-toggle.is-dark .i-sun { display: block; }
   .theme-toggle.is-dark .i-moon { display: none; }
   @media (max-width: 480px) { .theme-label { display: none; } .theme-toggle { padding: 9px; } }
+  .back { display: inline-block; margin-bottom: 6px; color: var(--muted); text-decoration: none; font-size: .9rem; font-weight: 600; }
+  .back:hover { color: var(--ink); text-decoration: underline; }
   h1 { font-size: 1.4rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
   header p { margin: 4px 0 0; color: var(--muted); }
   .status { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: .82rem; color: var(--muted); }
@@ -248,7 +250,7 @@
   .pop input[type=text] { font-size: 1.1rem; padding: 12px 14px; }
   .pop .btns button { flex: 1 1 auto; }
   .pop .danger { color: var(--select); }
-  .pop input[type=password] { font-size: 1.1rem; padding: 12px 14px; width: 100%; box-sizing: border-box; }
+  .pop input[type=password] { font: inherit; font-size: 1.1rem; padding: 12px 14px; width: 100%; box-sizing: border-box; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
   .pop-hint { margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
   .pop-err { margin: 8px 0 0; font-size: .9rem; font-weight: 600; color: var(--select); }
   .pop button:disabled { opacity: .6; cursor: progress; }
@@ -288,7 +290,8 @@
 </style>
 <header>
   <div class="head-text">
-    <h1>Alapihan Puutarha · Kasvihuoneen kasvikartta</h1>
+    <a class="back" id="back" href="index.html">← Takaisin pihalle</a>
+    <h1 id="page-title">Kasvihuoneen kasvikartta</h1>
     <p>Valitse painikkeista, mitä kartalla näytetään, ja napauta kohtaa nähdäksesi, mitä siinä kasvaa.</p>
     <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
   </div>
@@ -513,7 +516,14 @@ for (const [id, cx] of [["KR-L", EDGE_LANE_X], ["KR-R", W - EDGE_LANE_X]]) {
    Opened as a local file with no SHEETS_URL: saved in this browser only. */
 const SHEETS_URL = "https://script.google.com/macros/s/AKfycbznsgru95KJ0qFghMDFFLfXNAGm5gcX5TbWfN2X-fLqHAeFokBOixIblv6h9QTYvUDA/exec"; // Apps Script web app (ends in /exec)
 const SHEETS_POLL_MS = 15000;
-const STORE_KEY = "alapiha-greenhouse-v1";
+/* Which greenhouse this is: kasvihuone.html?talo=1…4 (opened from the yard page).
+   Greenhouse 2 keeps the original codes (T4-S1…); the others get a prefix
+   (K1-T4-S1…), so all four share one spreadsheet without mixing up. */
+const HOUSES = { "1": "K1-", "2": "", "3": "K3-", "4": "K4-" };
+const HOUSE_NO = (() => { try { const n = new URLSearchParams(location.search).get("talo"); return n in HOUSES ? n : "2"; } catch (e) { return "2"; } })();
+const HOUSE_PREFIX = HOUSES[HOUSE_NO];
+const HOUSE_NAME = "Kasvihuone " + HOUSE_NO;
+const STORE_KEY = "alapiha-greenhouse-v1" + (HOUSE_PREFIX ? "-" + HOUSE_NO : "");
 const PIN_KEY = "alapiha-greenhouse-pin";  // family PIN, remembered on this device after it works once
 function getPin() { try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
 function setPin(v) { try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
@@ -547,7 +557,7 @@ async function persist(s, pin) {
       const res = await fetch(SHEETS_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ id: s.id, name: s.name, species: s.species, note: s.note, pin: pin || "" }),
+        body: JSON.stringify({ id: HOUSE_PREFIX + s.id, name: HOUSE_NAME + " · " + s.name, species: s.species, note: s.note, pin: pin || "" }),
       });
       const out = await res.json();
       if (!out.ok) {
@@ -586,7 +596,10 @@ async function loadSheet() {
   const res = await fetch(SHEETS_URL + (SHEETS_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
   const out = await res.json();
   if (pendingSaves) return; // don't overwrite a label that is still being saved
-  applyRemote(Object.entries(out.sections || {}).map(([id, d]) => ({ id, exists: true, data: () => d })));
+  const entries = Object.entries(out.sections || {})
+    .filter(([id]) => id.startsWith(HOUSE_PREFIX))
+    .map(([id, d]) => ({ id: id.slice(HOUSE_PREFIX.length), exists: true, data: () => d }));
+  applyRemote(entries);
 }
 
 function connectSheets() {
@@ -1056,6 +1069,10 @@ syncThemeButton();
 
 /* ---------------- init ---------------- */
 document.documentElement.lang = "fi";
+document.getElementById("page-title").textContent = HOUSE_NAME + " · Kasvikartta";
+document.title = HOUSE_NAME + " · Alapihan Puutarha";
+// on claude.ai there is no yard page to go back to
+if (window.claude) document.getElementById("back").hidden = true;
 drawStatic();
 drawSections();
 sections.forEach(refreshSection);

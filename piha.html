@@ -1,0 +1,806 @@
+<meta charset="utf-8">
+<title>Alapihan Puutarha</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root {
+    --bg: #f6f4ee;
+    --surface: #ffffff;
+    --ink: #1f2a22;
+    --muted: #66705f;
+    --line: #d9d5c8;
+    --wall: #3b4a3f;
+    --table: #e7dcc6;
+    --table-stroke: #a8916a;
+    --table-empty: #f1ece1;
+    --table-filled: #dcc595;
+    --plant: #5f9b62;
+    --plant-stroke: #3d7341;
+    --plant-empty: #c5d6c0;
+    --accent: #e0882f;
+    --accent-soft: #f7d9b5;
+    --select: #c4581b;
+    --badge-bg: #1f2a22;
+    --badge-ink: #ffffff;
+    --focus: #2d6fd6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141a16;
+      --surface: #1d241f;
+      --ink: #e8ece4;
+      --muted: #9aa695;
+      --line: #344037;
+      --wall: #b8c7b9;
+      --table: #4a4234;
+      --table-stroke: #8d7a58;
+      --table-empty: #2c2a24;
+      --table-filled: #6e5c3a;
+      --plant: #6fb06f;
+      --plant-stroke: #9bd29a;
+      --plant-empty: #3b5340;
+      --accent: #f0a050;
+      --accent-soft: #5a3f22;
+      --select: #ffb46b;
+      --badge-bg: #e8ece4;
+      --badge-ink: #141a16;
+      --focus: #7aa8ff;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141a16; --surface: #1d241f; --ink: #e8ece4; --muted: #9aa695; --line: #344037;
+    --wall: #b8c7b9; --table: #4a4234; --table-stroke: #8d7a58; --table-empty: #2c2a24; --table-filled: #6e5c3a;
+    --plant: #6fb06f; --plant-stroke: #9bd29a; --plant-empty: #3b5340;
+    --accent: #f0a050; --accent-soft: #5a3f22; --select: #ffb46b;
+    --badge-bg: #e8ece4; --badge-ink: #141a16; --focus: #7aa8ff;
+    color-scheme: dark;
+  }
+  /* yard illustration colours */
+  :root {
+    --grass: #b4d692; --grass-2: #a3cb7f; --tree: #6aa957; --tree-2: #4f8d43; --tree-hi: #8cc26f;
+    --gravel: #ece0c4; --road: #dfcda6; --road-edge: #cdb98d;
+    --water: #78bde0; --water-2: #5aa5d2; --water-hi: #b7e0f3; --bank: #a6d084;
+    --glass: #e6f3f0; --glass-2: #d2e9e4; --rib: #ffffff; --frame: #9fb7ad;
+    --outline: #3a4a40; --shadow: rgba(40, 70, 40, .22);
+    --wood: #c99a62; --wood-2: #a87a45; --hut: #e9ebe6; --roof: #c46b5c; --door: #5e6f62;
+    --gh-hover: #fff3c4; --gh-hover-2: #ffe69a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --grass: #2e4630; --grass-2: #293f2b; --tree: #3f6a3b; --tree-2: #2f5530; --tree-hi: #557f4c;
+      --gravel: #4b4536; --road: #575040; --road-edge: #665d49;
+      --water: #2c5f80; --water-2: #234f6d; --water-hi: #4f87a8; --bank: #35533a;
+      --glass: #3c504c; --glass-2: #33453f; --rib: #a8c4bc; --frame: #6f8a80;
+      --outline: #0e1410; --shadow: rgba(0, 0, 0, .4);
+      --wood: #8d6a43; --wood-2: #6d5032; --hut: #5c625c; --roof: #8b4c42; --door: #222b25;
+      --gh-hover: #6d6230; --gh-hover-2: #81733a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --grass: #2e4630; --grass-2: #293f2b; --tree: #3f6a3b; --tree-2: #2f5530; --tree-hi: #557f4c;
+    --gravel: #4b4536; --road: #575040; --road-edge: #665d49;
+    --water: #2c5f80; --water-2: #234f6d; --water-hi: #4f87a8; --bank: #35533a;
+    --glass: #3c504c; --glass-2: #33453f; --rib: #a8c4bc; --frame: #6f8a80;
+    --outline: #0e1410; --shadow: rgba(0, 0, 0, .4);
+    --wood: #8d6a43; --wood-2: #6d5032; --hut: #5c625c; --roof: #8b4c42; --door: #222b25;
+    --gh-hover: #6d6230; --gh-hover-2: #81733a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header, main {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  header { padding-block: 20px 8px; max-width: 1180px; margin: 0 auto; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+  .head-text { min-width: 0; }
+  .theme-toggle {
+    flex: none; display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 12px; border-radius: 999px; font-size: .85rem;
+    background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  }
+  .theme-toggle:hover { border-color: var(--accent); }
+  .theme-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .theme-toggle .i-sun { display: none; }
+  .theme-toggle.is-dark .i-sun { display: block; }
+  .theme-toggle.is-dark .i-moon { display: none; }
+  @media (max-width: 480px) { .theme-label { display: none; } .theme-toggle { padding: 9px; } }
+  h1 { font-size: 1.4rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  .status { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: .82rem; color: var(--muted); }
+  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--plant); }
+  .status[data-state="loading"]::before { background: var(--accent); }
+  .status[data-state="readonly"]::before, .status[data-state="offline"]::before { background: var(--muted); }
+    position: absolute; pointer-events: none; z-index: 5;
+    background: var(--ink); color: var(--bg); padding: 6px 10px; border-radius: 8px;
+    font-size: 13px; max-width: 220px; opacity: 0; transition: opacity .1s; transform: translate(-50%, calc(-100% - 12px));
+  }
+  .tip.show { opacity: 1; }
+  .tip b { display: block; }
+
+  /* panel */
+  .panel { display: grid; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .card h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+  input[type=search], input[type=text], textarea {
+    width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  }
+  textarea { min-height: 70px; resize: vertical; }
+  input:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin: 10px 0 4px; }
+
+  .detail-title { display: flex; align-items: center; gap: 10px; }
+  .detail-title .code, .pop-head .code { white-space: nowrap; flex: none; }
+  .detail-title .code { background: var(--badge-bg); color: var(--badge-ink); font-weight: 700; border-radius: 999px; padding: 2px 10px; font-size: .85rem; }
+  .detail-title h3 { margin: 0; font-size: 1.1rem; }
+  .species { font-size: 1.35rem; font-weight: 650; margin: 10px 0 2px; }
+  .species.none { color: var(--muted); font-weight: 400; font-style: italic; font-size: 1rem; }
+  .note { color: var(--muted); margin: 4px 0 0; white-space: pre-wrap; }
+  .hint { color: var(--muted); margin: 0; }
+
+  /* pop-up editor */
+  [hidden] { display: none !important; }
+  .pop-backdrop {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(20, 26, 22, .45);
+    display: flex; align-items: center; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .pop {
+    width: min(440px, 100%); max-height: 100%; overflow: auto;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 16px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.25);
+    animation: pop-in .14s ease-out;
+  }
+  @keyframes pop-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .pop { animation: none; } }
+  @media (max-width: 560px) {
+    .pop-backdrop { align-items: flex-end; padding-bottom: 0; }
+    .pop { border-radius: 16px 16px 0 0; padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
+  }
+  .pop-head { display: flex; align-items: flex-start; gap: 10px; }
+  .pop-head .code { background: var(--badge-bg); color: var(--badge-ink); font-weight: 700; border-radius: 999px; padding: 3px 10px; font-size: .85rem; margin-top: 2px; }
+  .pop-titles { flex: 1; min-width: 0; }
+  .pop-kind { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .pop-titles h3 { margin: 0; font-size: 1.05rem; text-wrap: balance; }
+  .pop-x { flex: none; width: 36px; height: 36px; padding: 0; border-radius: 50%; font-size: 1.4rem; line-height: 1; background: none; }
+  .pop input[type=text] { font-size: 1.1rem; padding: 12px 14px; }
+  .pop .btns button { flex: 1 1 auto; }
+  .pop .danger { color: var(--select); }
+  .pop input[type=password] { font: inherit; font-size: 1.1rem; padding: 12px 14px; width: 100%; box-sizing: border-box; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+  .pop-hint { margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
+  .pop-err { margin: 8px 0 0; font-size: .9rem; font-weight: 600; color: var(--select); }
+  .pop button:disabled { opacity: .6; cursor: progress; }
+  .pop-readonly { display: none; }
+  .pop.readonly .pop-readonly, .pop-backdrop.readonly .pop-readonly { display: block; }
+  .pop-backdrop.readonly .pop-edit { display: none; }
+
+  .btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    font: inherit; border-radius: 10px; padding: 9px 14px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  main { max-width: 1180px; margin: 0 auto; padding-block: 8px 32px; display: grid; gap: 16px; }
+  @media (min-width: 900px) {
+    main { grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); align-items: start; }
+    .panel { position: sticky; top: 16px; }
+  }
+  .yard-wrap { background: var(--grass); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; position: relative; }
+  svg.yard { display: block; width: 100%; height: auto; max-height: calc(100vh - 140px); margin: 0 auto; touch-action: manipulation; }
+  svg.yard text { font-family: inherit; }
+
+  /* illustration */
+  .grass { fill: var(--grass); }
+  .gravel { fill: var(--gravel); stroke: var(--road-edge); stroke-width: 2; }
+  .road { fill: none; stroke: var(--road); stroke-linecap: round; stroke-linejoin: round; }
+  .road-edge { fill: none; stroke: var(--road-edge); stroke-linecap: round; stroke-linejoin: round; }
+  .bank { fill: var(--bank); }
+  .lake { fill: var(--water); stroke: var(--outline); stroke-width: 3; }
+  .lake-deep { fill: var(--water-2); }
+  .ripple { fill: none; stroke: var(--water-hi); stroke-width: 3; stroke-linecap: round; }
+  .lake-label { fill: var(--water-hi); font-size: 22px; font-style: italic; font-weight: 600; text-anchor: middle; letter-spacing: .08em; }
+  .tree .crown { fill: var(--tree); stroke: var(--outline); stroke-width: 2.5; }
+  .tree .crown-2 { fill: var(--tree-2); }
+  .tree .hi { fill: var(--tree-hi); }
+  .shadow { fill: var(--shadow); }
+  .compass circle { fill: var(--surface); stroke: var(--outline); stroke-width: 2.5; }
+  .compass path { fill: var(--select); stroke: var(--outline); stroke-width: 1.5; stroke-linejoin: round; }
+  .compass text { fill: var(--ink); font-size: 15px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+
+  /* greenhouses */
+  .gh { cursor: pointer; outline: none; }
+  .gh .lift { transition: transform .18s ease; transform-box: fill-box; }
+  .gh .body { fill: var(--glass); stroke: var(--outline); stroke-width: 3.5; transition: fill .15s; }
+  .gh .end { fill: var(--glass-2); stroke: var(--outline); stroke-width: 2.5; }
+  .gh .rib { stroke: var(--rib); stroke-width: 2.5; opacity: .9; stroke-linecap: round; }
+  .gh .ridge { stroke: var(--frame); stroke-width: 3; stroke-linecap: round; }
+  .gh .plant { fill: var(--tree-hi); opacity: .55; }
+  .gh .door { fill: var(--door); stroke: var(--outline); stroke-width: 2; }
+  .gh .label rect { fill: var(--surface); stroke: var(--outline); stroke-width: 2.5; }
+  .gh .label .small { fill: var(--muted); font-size: 10.5px; font-weight: 700; text-anchor: middle; letter-spacing: .04em; text-transform: uppercase; }
+  .gh .label .big { fill: var(--ink); font-size: 26px; font-weight: 800; text-anchor: middle; }
+  .gh .label .count { fill: var(--muted); font-size: 11px; text-anchor: middle; }
+  .gh .enter-text { fill: var(--select); font-size: 11px; font-weight: 800; text-anchor: middle; opacity: 0; transition: opacity .15s; }
+  .gh .count { transition: opacity .15s; }
+  .gh:hover .count, .gh:focus-visible .count { opacity: 0; }
+  .gh .arrow { fill: none; stroke: var(--outline); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .gh:hover .lift, .gh:focus-visible .lift { transform: translateY(-5px); }
+  .gh:hover .body, .gh:focus-visible .body { fill: var(--gh-hover); }
+  .gh:hover .end, .gh:focus-visible .end { fill: var(--gh-hover-2); }
+  .gh:hover .enter-text, .gh:focus-visible .enter-text { opacity: 1; }
+  .gh:focus-visible .body { stroke: var(--focus); stroke-width: 5; }
+  @media (prefers-reduced-motion: reduce) { .gh .lift { transition: none; } .gh:hover .lift, .gh:focus-visible .lift { transform: none; } }
+
+  /* outdoor tables */
+  .ot { cursor: pointer; outline: none; }
+  .ot .hit { fill: transparent; }
+  .ot .top { fill: var(--wood); stroke: var(--outline); stroke-width: 2.5; transition: fill .15s; }
+  .ot .plank { stroke: var(--wood-2); stroke-width: 1.5; }
+  .ot .pot { fill: var(--tree-hi); stroke: var(--outline); stroke-width: 1.5; }
+  .ot .num circle { fill: var(--surface); stroke: var(--outline); stroke-width: 2.5; transition: fill .15s; }
+  .ot .num text { fill: var(--ink); font-size: 15px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+  .ot:hover .top, .ot:focus-visible .top, .ot.selected .top { fill: var(--gh-hover-2); }
+  .ot:hover .num circle, .ot:focus-visible .num circle, .ot.selected .num circle { fill: var(--accent); }
+  .ot:focus-visible .top { stroke: var(--focus); stroke-width: 4; }
+
+  .hut .body { fill: var(--hut); stroke: var(--outline); stroke-width: 3; }
+  .hut .rib { stroke: var(--outline); stroke-width: 1.2; opacity: .35; }
+  .kassa .roof { fill: var(--roof); stroke: var(--outline); stroke-width: 3; }
+  .kassa .ridge { stroke: var(--outline); stroke-width: 2; opacity: .5; }
+  .kassa .sign rect { fill: var(--surface); stroke: var(--outline); stroke-width: 2; }
+  .kassa .sign text { fill: var(--ink); font-size: 12px; font-weight: 800; text-anchor: middle; dominant-baseline: central; letter-spacing: .04em; }
+
+  /* panel */
+  .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .quick a {
+    display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+  }
+  .quick a:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .quick a b { font-size: 1rem; }
+  .quick a span { font-size: .8rem; color: var(--muted); }
+  .chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .chips button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 10px; min-width: 0; text-align: left; }
+  .chips button b { font-size: .95rem; }
+  .chips button span { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .chips button:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .chips button.filled span { color: var(--ink); font-weight: 600; }
+</style>
+<header>
+  <div class="head-text">
+    <h1>Alapihan Puutarha</h1>
+    <p>Napauta kasvihuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille 1–8 voit kirjoittaa kasvin suoraan.</p>
+    <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
+  </div>
+  <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Vaihda tummaan tilaan">
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+    <span class="theme-label">Tumma</span>
+  </button>
+</header>
+
+<main>
+  <section class="yard-wrap" aria-label="Piha ylhäältä katsottuna">
+    <svg class="yard" id="yard" viewBox="-120 425 900 985" role="group" aria-label="Alapihan Puutarhan piha: neljä kasvihuonetta, ulkopöydät 1–8 ja lampi"></svg>
+    <div class="tip" id="tip" role="presentation"></div>
+  </section>
+
+  <aside class="panel">
+    <div class="card">
+      <h2>Kasvihuoneet</h2>
+      <div class="quick" id="quick"></div>
+    </div>
+    <div class="card">
+      <h2>Ulkopöydät</h2>
+      <div class="chips" id="chips"></div>
+    </div>
+  </aside>
+</main>
+
+<div class="pop-backdrop" id="pop" hidden>
+  <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
+    <div class="pop-head">
+      <span class="code" id="pop-code"></span>
+      <div class="pop-titles">
+        <span class="pop-kind">ulkopöytä</span>
+        <h3 id="pop-title"></h3>
+      </div>
+      <button type="button" class="pop-x" id="pop-close" aria-label="Sulje">×</button>
+    </div>
+    <form id="pop-form" autocomplete="off">
+      <label for="pop-species">Kasvi</label>
+      <input type="text" id="pop-species" placeholder="Kirjoita kasvi, esim. orvokki" enterkeyhint="done">
+      <label for="pop-note">Muistiinpanot (vapaaehtoinen)</label>
+      <textarea id="pop-note" rows="2" placeholder="Lajike, istutuspäivä, kastelu…"></textarea>
+      <div id="pop-pin-wrap" hidden>
+        <label for="pop-pin">Perheen PIN-koodi</label>
+        <input type="password" id="pop-pin" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
+        <p class="pop-hint">Koodi kysytään vain kerran tällä laitteella.</p>
+      </div>
+      <p class="pop-err" id="pop-err" role="alert" hidden></p>
+      <div class="btns">
+        <button type="submit" class="primary">Tallenna</button>
+        <button type="button" id="pop-cancel">Peruuta</button>
+        <button type="button" id="pop-clear" class="danger">Tyhjennä</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Alapihan Puutarha – front page: the yard seen from above.
+
+   Positions are traced from the Google Maps aerial photo. The photo's
+   buildings lean 33° (their long sides run north-west → south-east);
+   here the whole yard is turned 33° so the greenhouses stand upright
+   with their doors at the bottom, like in the hand sketch. Turning
+   keeps every distance exactly as in the photo.
+
+   World coordinates = pixels of the 1600 px wide aerial photo.
+   Local coordinates (u, v) = the turned yard, used by the SVG.
+   ============================================================ */
+const COS = Math.cos(33 * Math.PI / 180), SIN = Math.sin(33 * Math.PI / 180);
+const L = ([x, y]) => [COS * x - SIN * y, SIN * x + COS * y];
+
+/* traced from the aerial photo (world coordinates) */
+const WORLD = {
+  yard: [[290,560],[318,420],[470,250],[640,140],[760,108],[900,160],[1020,170],[1120,290],[1200,380],[1280,520],[1262,604],[1130,604],[1030,632],[940,662],[800,662],[680,692],[560,752],[480,802],[430,772],[330,702]],
+  roadLoop: [[980,632],[860,652],[740,668],[620,708],[530,772],[470,862],[440,962],[432,1080],[440,1200]],
+  roadNorth: [[1150,330],[1060,210],[1000,140],[930,40],[900,-60]],
+  roadEast: [[1250,575],[1330,700],[1420,860],[1600,1000]],
+  roadSouth: [[600,1260],[900,1175],[1100,1082],[1350,1022],[1600,990]],
+  bank: [[520,800],[600,742],[700,706],[840,692],[950,702],[1060,742],[1160,792],[1262,852],[1320,922],[1282,976],[1150,1010],[1030,1042],[940,1092],[880,1182],[500,1182],[478,1000],[488,880]],
+  lake: [[700,745],[760,730],[820,740],[880,760],[960,790],[1030,820],[1080,860],[1100,900],[1080,950],[1020,975],[960,990],[910,1030],[880,1080],[840,1130],[780,1160],[700,1160],[650,1100],[630,1020],[625,940],[630,860],[660,790]],
+};
+
+/* buildings and tables, already in the turned (local) frame: x, y, width, height */
+const HOUSES = [
+  { no: "1", rect: [27, 532, 70, 336] },
+  { no: "2", rect: [170, 490, 156, 385] },
+  { no: "3", rect: [421, 543, 120, 449], noArrow: true },   // table 5 sits right at its door
+  { no: "4", rect: [615, 691, 76, 260] },
+];
+const HUT = [-57, 670, 42, 132];       // small storage shed by greenhouse 1
+const KASSA = [548, 1048, 56, 44];      // cashier
+const TABLES = [
+  { no: "1", parts: [[266, 884, 70, 14]] },
+  { no: "2", parts: [[334, 690, 15, 170]] },
+  { no: "3", parts: [[292, 924, 110, 15]] },
+  { no: "4", parts: [[402, 760, 15, 185]] },
+  { no: "5", parts: [[425, 999, 112, 14]] },
+  { no: "6", parts: [[592, 770, 15, 175]] },
+  { no: "7", parts: [[640, 1035, 14, 62], [612, 1083, 42, 14]] },
+  { no: "8", parts: [[180, 884, 52, 14]] },
+];
+/* where each table's number badge sits */
+const BADGE = { "1": [301, 870], "2": [341, 674], "3": [347, 911], "4": [409, 744], "5": [481, 985], "6": [599, 754], "7": [668, 1066], "8": [206, 870] };
+/* trees (local frame): x, y, size */
+const TREES = [
+  [-92, 470, 34], [-60, 450, 26], [-98, 560, 30], [-96, 640, 24], [-100, 860, 30], [-70, 905, 22], [-98, 960, 26],
+  [-95, 1060, 32], [-100, 1150, 26], [-80, 1250, 34], [-100, 1340, 28],
+  [120, 450, 22], [372, 470, 26], [575, 470, 30], [700, 520, 34], [760, 610, 26], [585, 600, 22],
+  [745, 1235, 34], [700, 1300, 28], [760, 1380, 30], [620, 1360, 24], [560, 1250, 22], [470, 1395, 26],
+];
+
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbznsgru95KJ0qFghMDFFLfXNAGm5gcX5TbWfN2X-fLqHAeFokBOixIblv6h9QTYvUDA/exec";
+const SHEETS_POLL_MS = 15000;
+const LOCAL_KEY = "alapiha-piha-v1";
+const PIN_KEY = "alapiha-greenhouse-pin";
+const HOUSE_PREFIX = { "1": "K1-", "2": "", "3": "K3-", "4": "K4-" };
+
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("yard");
+const tip = document.getElementById("tip");
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+const f = n => Math.round(n * 10) / 10;
+
+/* smooth closed or open curve through points (Catmull-Rom → Bézier) */
+function smooth(pts, closed = true) {
+  const n = pts.length, P = i => closed ? pts[(i + n) % n] : pts[Math.max(0, Math.min(n - 1, i))];
+  let d = `M${f(pts[0][0])},${f(pts[0][1])}`;
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += `C${f(c1[0])},${f(c1[1])} ${f(c2[0])},${f(c2[1])} ${f(p2[0])},${f(p2[1])}`;
+  }
+  return closed ? d + "Z" : d;
+}
+const local = pts => pts.map(L);
+
+/* ---------------- labels / data ---------------- */
+let labels = {};            // id → { species, note } for every row in the sheet
+let mode = "local";
+const tableId = no => "P" + no;
+const tableName = no => "Ulkopöytä " + no;
+
+function plantedCount(houseNo) {
+  const pfx = HOUSE_PREFIX[houseNo];
+  return Object.entries(labels).filter(([id, d]) => {
+    if (!d.species) return false;
+    if (pfx) return id.startsWith(pfx);
+    return !/^K\d-/.test(id) && !/^P\d+$/.test(id);   // greenhouse 2 keeps the original codes
+  }).length;
+}
+
+/* ---------------- drawing ---------------- */
+const nodes = {};
+
+function drawTree([x, y, r], parent) {
+  const g = el("g", { class: "tree" }, parent);
+  el("ellipse", { class: "shadow", cx: x + r * .25, cy: y + r * .3, rx: r, ry: r * .9 }, g);
+  const blob = [];
+  for (let i = 0; i < 9; i++) {
+    const a = i / 9 * Math.PI * 2, k = 1 + .12 * Math.sin(i * 2.7 + x);
+    blob.push([x + Math.cos(a) * r * k, y + Math.sin(a) * r * k]);
+  }
+  el("path", { class: "crown", d: smooth(blob) }, g);
+  el("circle", { class: "crown-2", cx: x + r * .25, cy: y + r * .25, r: r * .5 }, g);
+  el("circle", { class: "hi", cx: x - r * .35, cy: y - r * .35, r: r * .28 }, g);
+}
+
+function drawGround() {
+  el("rect", { class: "grass", x: -400, y: 0, width: 1600, height: 1800 }, svg);
+  // roads first, gravel yard over them
+  const roads = [WORLD.roadLoop, WORLD.roadNorth, WORLD.roadEast, WORLD.roadSouth].map(r => smooth(local(r), false));
+  roads.forEach(d => el("path", { class: "road-edge", d, "stroke-width": 50 }, svg));
+  roads.forEach(d => el("path", { class: "road", d, "stroke-width": 44 }, svg));
+  el("path", { class: "gravel", d: smooth(local(WORLD.yard)) }, svg);
+  el("path", { class: "bank", d: smooth(local(WORLD.bank)) }, svg);
+
+  // lake
+  const lake = local(WORLD.lake);
+  el("path", { class: "lake", d: smooth(lake) }, svg);
+  const c = lake.reduce((a, p) => [a[0] + p[0] / lake.length, a[1] + p[1] / lake.length], [0, 0]);
+  el("path", { class: "lake-deep", d: smooth(lake.map(([x, y]) => [c[0] + (x - c[0]) * .62, c[1] + (y - c[1]) * .62])) }, svg);
+  [[-40, -60, 34], [30, 10, 26], [-70, 70, 22], [60, 95, 30]].forEach(([dx, dy, w]) =>
+    el("path", { class: "ripple", d: `M${f(c[0] + dx - w / 2)},${f(c[1] + dy)} q${w / 4},-6 ${w / 2},0 t${w / 2},0` }, svg));
+  const lbl = el("text", { class: "lake-label", x: f(c[0] - 10), y: f(c[1] + 40) }, svg);
+  lbl.textContent = "LAMPI";
+
+  TREES.forEach(t => drawTree(t, svg));
+
+  // compass: north on the photo points up; turned with the yard it leans 33° right
+  const cg = el("g", { class: "compass", transform: "translate(712 1170)", "aria-hidden": "true" }, svg);
+  el("circle", { r: 26 }, cg);
+  el("path", { d: "M0,-19 L7,4 L0,0 L-7,4 Z", transform: "rotate(33)" }, cg);
+  const nt = el("text", { x: f(Math.sin(33 * Math.PI / 180) * 40), y: f(-Math.cos(33 * Math.PI / 180) * 40) }, cg);
+  nt.textContent = "P";
+}
+
+function drawHut() {
+  const [x, y, w, h] = HUT;
+  const g = el("g", { class: "hut", "aria-hidden": "true" }, svg);
+  el("rect", { class: "shadow", x: x + 7, y: y + 7, width: w, height: h, rx: w / 2.4 }, g);
+  el("rect", { class: "body", x, y, width: w, height: h, rx: w / 2.4 }, g);
+  for (let yy = y + 16; yy < y + h - 10; yy += 16) el("line", { class: "rib", x1: x + 4, x2: x + w - 4, y1: yy, y2: yy }, g);
+}
+
+function drawKassa() {
+  const [x, y, w, h] = KASSA;
+  const g = el("g", { class: "kassa", "aria-label": "Kassa", role: "img" }, svg);
+  el("rect", { class: "shadow", x: x + 6, y: y + 6, width: w, height: h, rx: 4 }, g);
+  el("rect", { class: "roof", x, y, width: w, height: h, rx: 4 }, g);
+  el("line", { class: "ridge", x1: x + 4, x2: x + w - 4, y1: y + h / 2, y2: y + h / 2 }, g);
+  const s = el("g", { class: "sign" }, g);
+  el("rect", { x: x + w / 2 - 25, y: y + h / 2 - 10, width: 50, height: 20, rx: 6 }, s);
+  el("text", { x: x + w / 2, y: y + h / 2 }, s).textContent = "KASSA";
+}
+
+function drawHouse(hs) {
+  const [x, y, w, h] = hs.rect;
+  const g = el("g", { class: "gh", tabindex: 0, role: "link", "data-no": hs.no }, svg);
+  el("rect", { class: "shadow", x: x + 9, y: y + 9, width: w, height: h, rx: w * .2 }, g);
+  const lift = el("g", { class: "lift" }, g);
+  el("rect", { class: "body", x, y, width: w, height: h, rx: w * .2 }, lift);
+  // a hint of the plants growing inside, seen through the glass
+  const rows = Math.max(2, Math.round(w / 34));
+  for (let r = 0; r < rows; r++) {
+    const cx = x + w * (r + .5) / rows;
+    for (let yy = y + 26; yy < y + h - 26; yy += 22) {
+      el("circle", { class: "plant", cx: f(cx + ((yy * 7 + r * 13) % 7) - 3), cy: yy, r: 5 + ((yy + r * 5) % 4) }, lift);
+    }
+  }
+  for (let yy = y + 26; yy < y + h - 12; yy += 26) el("line", { class: "rib", x1: x + 5, x2: x + w - 5, y1: yy, y2: yy }, lift);
+  el("line", { class: "ridge", x1: x + w / 2, x2: x + w / 2, y1: y + 8, y2: y + h - 8 }, lift);
+  el("path", { class: "end", d: `M${x + 3},${y + w * .2} Q${x + w / 2},${y - 6} ${x + w - 3},${y + w * .2} Z` }, lift);
+  el("path", { class: "end", d: `M${x + 3},${y + h - w * .2} Q${x + w / 2},${y + h + 6} ${x + w - 3},${y + h - w * .2} Z` }, lift);
+  // door at the bottom end
+  const dw = Math.min(30, w * .36);
+  el("rect", { class: "door", x: x + w / 2 - dw / 2, y: y + h - 7, width: dw, height: 12, rx: 3 }, lift);
+  // name card
+  const lab = el("g", { class: "label" }, lift);
+  const cy = y + h * .45, cw = 100;
+  el("rect", { x: x + w / 2 - cw / 2, y: cy - 34, width: cw, height: 68, rx: 14 }, lab);
+  el("text", { class: "small", x: x + w / 2, y: cy - 16 }, lab).textContent = "Kasvihuone";
+  el("text", { class: "big", x: x + w / 2, y: cy + 12 }, lab).textContent = hs.no;
+  const count = el("text", { class: "count", x: x + w / 2, y: cy + 27 }, lab);
+  el("text", { class: "enter-text", x: x + w / 2, y: cy + 27 }, lab).textContent = "Astu sisään →";
+  // entrance arrow below the door
+  if (!hs.noArrow) el("path", { class: "arrow", d: `M${x + w / 2},${y + h + 36} v-20 m-7,7 l7,-7 l7,7` }, g);
+
+  const go = () => { location.href = "kasvihuone.html?talo=" + hs.no; };
+  g.addEventListener("click", go);
+  g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  g.addEventListener("pointermove", e => showTip(e, "Kasvihuone " + hs.no, "Napauta, niin pääset sisälle"));
+  g.addEventListener("pointerleave", hideTip);
+  nodes["house" + hs.no] = { g, count };
+}
+
+function drawTable(t) {
+  const g = el("g", { class: "ot", tabindex: 0, role: "button", "data-no": t.no }, svg);
+  t.parts.forEach(([x, y, w, h]) => {
+    el("rect", { class: "hit", x: x - 12, y: y - 12, width: w + 24, height: h + 24 }, g);
+  });
+  t.parts.forEach(([x, y, w, h]) => {
+    el("rect", { class: "shadow", x: x + 4, y: y + 4, width: w, height: h, rx: 3 }, g);
+  });
+  const pots = el("g", {}, null);
+  t.parts.forEach(([x, y, w, h]) => {
+    el("rect", { class: "top", x, y, width: w, height: h, rx: 3 }, g);
+    const along = w > h;
+    for (let k = 1; k < 3; k++) {
+      if (along) el("line", { class: "plank", x1: x + 3, x2: x + w - 3, y1: y + h * k / 3, y2: y + h * k / 3 }, g);
+      else el("line", { class: "plank", y1: y + 3, y2: y + h - 3, x1: x + w * k / 3, x2: x + w * k / 3 }, g);
+    }
+    const len = along ? w : h;
+    for (let p = 9; p < len - 6; p += 14) {
+      el("circle", { class: "pot", cx: along ? x + p : x + w / 2, cy: along ? y + h / 2 : y + p, r: 4.5 }, pots);
+    }
+  });
+  g.appendChild(pots);
+  const [bx, by] = BADGE[t.no];
+  const num = el("g", { class: "num" }, g);
+  el("circle", { cx: bx, cy: by, r: 13 }, num);
+  el("text", { x: bx, y: by }, num).textContent = t.no;
+
+  g.addEventListener("click", () => openPopup(t.no));
+  g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPopup(t.no); } });
+  g.addEventListener("pointermove", e => {
+    const d = labels[tableId(t.no)];
+    showTip(e, tableName(t.no), d && d.species ? d.species : "Ei vielä merkitty – napauta ja kirjoita kasvi");
+  });
+  g.addEventListener("pointerleave", hideTip);
+  nodes["table" + t.no] = { g, pots };
+}
+
+function showTip(e, title, text) {
+  if (e.pointerType !== "mouse") return;
+  const box = svg.parentElement.getBoundingClientRect();
+  tip.innerHTML = "";
+  const b = document.createElement("b"); b.textContent = title;
+  tip.append(b, document.createTextNode(text));
+  tip.style.left = (e.clientX - box.left) + "px";
+  tip.style.top = (e.clientY - box.top) + "px";
+  tip.classList.add("show");
+}
+function hideTip() { tip.classList.remove("show"); }
+
+/* ---------------- panel ---------------- */
+const quick = document.getElementById("quick");
+const chips = document.getElementById("chips");
+HOUSES.forEach(hs => {
+  const a = document.createElement("a");
+  a.href = "kasvihuone.html?talo=" + hs.no;
+  const b = document.createElement("b"); b.textContent = "Kasvihuone " + hs.no;
+  const s = document.createElement("span"); s.dataset.count = hs.no;
+  a.append(b, s);
+  quick.appendChild(a);
+});
+TABLES.slice().sort((a, b) => a.no - b.no).forEach(t => {
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.dataset.no = t.no;
+  const b = document.createElement("b"); b.textContent = t.no;
+  const s = document.createElement("span");
+  btn.append(b, s);
+  btn.onclick = () => openPopup(t.no);
+  chips.appendChild(btn);
+});
+
+function refresh() {
+  HOUSES.forEach(hs => {
+    const n = plantedCount(hs.no);
+    const txt = n ? n + (n === 1 ? " kasvi" : " kasvia") : "ei merkintöjä";
+    nodes["house" + hs.no].count.textContent = txt;
+    quick.querySelector(`[data-count="${hs.no}"]`).textContent = txt;
+  });
+  TABLES.forEach(t => {
+    const d = labels[tableId(t.no)] || {};
+    nodes["table" + t.no].pots.style.display = d.species ? "" : "none";
+    const chip = chips.querySelector(`[data-no="${t.no}"]`);
+    chip.classList.toggle("filled", !!d.species);
+    chip.querySelector("span").textContent = d.species || "tyhjä";
+    chip.setAttribute("aria-label", tableName(t.no) + ": " + (d.species || "ei merkitty"));
+  });
+}
+
+/* ---------------- storage: shared Google Sheet (same as the greenhouse maps) ---------------- */
+const statusEl = document.getElementById("status");
+function setStatus(state, text) { statusEl.dataset.state = state; statusEl.textContent = text; }
+function getPin() { try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
+function setPin(v) { try { v ? localStorage.setItem(PIN_KEY, v) : localStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } }
+let pendingSaves = 0;
+
+async function loadSheet() {
+  const res = await fetch(SHEETS_URL + "?t=" + Date.now());
+  const out = await res.json();
+  if (pendingSaves) return;
+  labels = out.sections || {};
+  refresh();
+}
+function connect() {
+  if (!SHEETS_URL) {
+    try { labels = JSON.parse(localStorage.getItem(LOCAL_KEY) || "{}") || {}; } catch (e) { labels = {}; }
+    setStatus("local", "Paikallinen kopio: merkinnät tallentuvat vain tähän selaimeen");
+    refresh();
+    return;
+  }
+  mode = "sheets";
+  let ok = false;
+  const tick = async () => {
+    try {
+      await loadSheet();
+      if (!ok) setStatus("shared", "Merkinnät tallentuvat yhteiseen Google-taulukkoon ja näkyvät kaikille");
+      ok = true;
+    } catch (e) {
+      ok = false;
+      setStatus("offline", "Google-taulukkoon ei saada yhteyttä. Yritetään uudelleen hetken päästä…");
+    }
+  };
+  tick();
+  setInterval(() => { if (!document.hidden) tick(); }, SHEETS_POLL_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
+}
+
+async function save(no, species, note, pin) {
+  const id = tableId(no);
+  if (mode !== "sheets") {
+    labels[id] = { species, note };
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(labels)); } catch (e) { /* ignore */ }
+    return;
+  }
+  pendingSaves++;
+  try {
+    const res = await fetch(SHEETS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ id, name: tableName(no) + " (piha)", species, note, pin }),
+    });
+    const out = await res.json();
+    if (!out.ok) { const err = new Error(out.error || "save failed"); if (out.error === "bad pin") err.code = "bad_pin"; throw err; }
+    labels[id] = { species, note };
+  } finally {
+    pendingSaves--;
+  }
+}
+
+/* ---------------- pop-up ---------------- */
+const pop = document.getElementById("pop");
+const popForm = document.getElementById("pop-form");
+const popSpecies = document.getElementById("pop-species");
+const popNote = document.getElementById("pop-note");
+const popPinWrap = document.getElementById("pop-pin-wrap");
+const popPin = document.getElementById("pop-pin");
+const popErr = document.getElementById("pop-err");
+let popNo = null, popBusy = false, popReturn = null;
+
+function showPopError(t) { popErr.textContent = t; popErr.hidden = !t; }
+function setPopBusy(on) {
+  popBusy = on;
+  pop.querySelectorAll("form button").forEach(b => b.disabled = on);
+  popForm.querySelector("button[type=submit]").textContent = on ? "Tallennetaan…" : "Tallenna";
+}
+function openPopup(no) {
+  hideTip();
+  popNo = no;
+  popReturn = document.activeElement;
+  const d = labels[tableId(no)] || {};
+  document.getElementById("pop-code").textContent = no;
+  document.getElementById("pop-title").textContent = tableName(no);
+  popSpecies.value = d.species || "";
+  popNote.value = d.note || "";
+  document.getElementById("pop-clear").hidden = !d.species && !d.note;
+  popPinWrap.hidden = !(mode === "sheets" && !getPin());
+  popPin.value = "";
+  showPopError("");
+  setPopBusy(false);
+  nodes["table" + no].g.classList.add("selected");
+  pop.hidden = false;
+  requestAnimationFrame(() => popSpecies.focus());
+}
+function closePopup() {
+  if (pop.hidden || popBusy) return;
+  pop.hidden = true;
+  if (popNo) nodes["table" + popNo].g.classList.remove("selected");
+  popNo = null;
+  if (popReturn && popReturn.focus) popReturn.focus({ preventScroll: true });
+}
+async function saveFromPopup(species, note) {
+  if (!popNo || popBusy) return;
+  const pin = mode === "sheets" ? (getPin() || popPin.value.trim()) : "";
+  if (mode === "sheets" && !pin) { popPinWrap.hidden = false; showPopError("Kirjoita perheen PIN-koodi."); popPin.focus(); return; }
+  showPopError("");
+  setPopBusy(true);
+  try {
+    await save(popNo, species, note, pin);
+  } catch (e) {
+    setPopBusy(false);
+    if (e && e.code === "bad_pin") {
+      setPin(""); popPinWrap.hidden = false; popPin.value = "";
+      showPopError("Väärä PIN-koodi. Tarkista koodi ja yritä uudelleen.");
+      popPin.focus();
+    } else {
+      showPopError("Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
+    }
+    return;
+  }
+  if (pin) setPin(pin);
+  setPopBusy(false);
+  closePopup();
+  refresh();
+}
+popForm.addEventListener("submit", e => { e.preventDefault(); saveFromPopup(popSpecies.value.trim(), popNote.value.trim()); });
+document.getElementById("pop-clear").onclick = () => saveFromPopup("", "");
+document.getElementById("pop-cancel").onclick = closePopup;
+document.getElementById("pop-close").onclick = closePopup;
+pop.addEventListener("click", e => { if (e.target === pop) closePopup(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePopup(); });
+pop.addEventListener("keydown", e => {
+  if (e.key !== "Tab") return;
+  const fs = [...pop.querySelectorAll("button:not(:disabled), input, textarea")].filter(x => !x.hidden && x.offsetParent !== null);
+  if (!fs.length) return;
+  const first = fs[0], last = fs[fs.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+
+const THEME_KEY = "alapiha-greenhouse-theme";
+const themeBtn = document.getElementById("theme-toggle");
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+function currentTheme() {
+  const set = document.documentElement.getAttribute("data-theme");
+  return set === "dark" || set === "light" ? set : (darkQuery.matches ? "dark" : "light");
+}
+function syncThemeButton() {
+  const dark = currentTheme() === "dark";
+  themeBtn.classList.toggle("is-dark", dark);
+  themeBtn.querySelector(".theme-label").textContent = dark ? "Vaalea" : "Tumma";
+  themeBtn.setAttribute("aria-label", dark ? "Vaihda vaaleaan tilaan" : "Vaihda tummaan tilaan");
+}
+try {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "dark" || saved === "light") document.documentElement.setAttribute("data-theme", saved);
+} catch (e) { /* storage unavailable: follow the device */ }
+themeBtn.addEventListener("click", () => {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* ignore */ }
+  syncThemeButton();
+});
+darkQuery.addEventListener("change", syncThemeButton);
+new MutationObserver(syncThemeButton).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+syncThemeButton();
+
+/* ---------------- init ---------------- */
+document.documentElement.lang = "fi";
+drawGround();
+drawHut();
+HOUSES.forEach(drawHouse);
+TABLES.forEach(drawTable);
+drawKassa();
+refresh();
+connect();
+</script>
