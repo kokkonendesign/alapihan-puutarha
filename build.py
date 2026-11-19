@@ -38,3 +38,8 @@ for src_name, out_name in PAGES.items():
 for name in ["pin-gate.js"]:
     (root / "docs" / name).write_text((root / name).read_text(encoding="utf-8"), encoding="utf-8")
     print(f"Copied docs/{name}")
+
+# images are copied byte for byte
+for name in ["logo.png"]:
+    (root / "docs" / name).write_bytes((root / name).read_bytes())
+    print(f"Copied docs/{name}")

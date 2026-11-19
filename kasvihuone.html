@@ -3,6 +3,10 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
+  /* button pink, taken from the Alapihan Puutarha logo */
+  :root { --pink: #e4bad8; --pink-strong: #c98bb9; --pink-soft: #f6e7f2; --pink-ink: #241b21; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pink-soft: #4a3446; } }
+  :root[data-theme="dark"] { --pink-soft: #4a3446; }
   :root {
     --bg: #f6f4ee;
     --surface: #ffffff;
@@ -75,7 +79,7 @@
     padding: 8px 12px; border-radius: 999px; font-size: .85rem;
     background: var(--surface); border: 1px solid var(--line); color: var(--ink);
   }
-  .theme-toggle:hover { border-color: var(--accent); }
+  .theme-toggle:hover { border-color: var(--pink-strong); }
   .theme-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .theme-toggle .i-sun { display: none; }
   .theme-toggle.is-dark .i-sun { display: block; }
@@ -159,18 +163,18 @@
   }
   .house-nav a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); border-radius: 14px; min-height: 52px; min-width: 0; }
   .hn-prev { justify-self: start; padding: 6px 14px 6px 8px; border: 1.5px solid var(--line); background: var(--surface); font-weight: 600; }
-  .hn-prev:hover { border-color: var(--accent); }
-  .hn-next { justify-self: end; padding: 6px 8px 6px 16px; background: var(--ink); color: var(--bg) !important; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
-  .hn-next:hover { filter: brightness(1.15); }
+  .hn-prev:hover { border-color: var(--pink-strong); background: var(--pink-soft); }
+  .hn-next { justify-self: end; padding: 6px 8px 6px 16px; background: var(--pink); color: var(--pink-ink) !important; border: 1.5px solid var(--pink-strong); font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.14); }
+  .hn-next:hover { background: var(--pink-strong); }
   .hn-label { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; text-align: right; }
   .hn-label small { font-size: .72rem; font-weight: 600; opacity: .75; text-transform: uppercase; letter-spacing: .06em; }
   .hn-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hn-arrow { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-size: 1.5rem; font-weight: 800; line-height: 1; }
   .hn-prev .hn-arrow { background: var(--bg); }
-  .hn-next .hn-arrow { background: var(--bg); color: var(--ink); font-size: 1.8rem; }
+  .hn-next .hn-arrow { background: #fff; color: var(--pink-ink); font-size: 1.8rem; }
   .hn-dots { display: flex; gap: 7px; align-items: center; }
   .hn-dots a { width: 12px; height: 12px; min-height: 0; border-radius: 50%; background: var(--line); padding: 0; }
-  .hn-dots a[aria-current="page"] { background: var(--ink); width: 26px; border-radius: 999px; }
+  .hn-dots a[aria-current="page"] { background: var(--pink-strong); width: 26px; border-radius: 999px; }
   @media (max-width: 560px) {
     .house-nav { grid-template-columns: auto minmax(0, 1fr); row-gap: 8px; }
     .hn-dots { grid-column: 1 / -1; grid-row: 2; justify-content: center; }
@@ -181,7 +185,7 @@
   .edge-arrow {
     position: fixed; right: max(8px, env(safe-area-inset-right, 0px)); top: 50%; z-index: 20; transform: translateY(-50%);
     width: 50px; height: 50px; border-radius: 50%; display: none; place-items: center;
-    background: var(--ink); color: var(--bg); font-size: 1.8rem; font-weight: 800; text-decoration: none;
+    background: var(--pink); color: var(--pink-ink); border: 1.5px solid var(--pink-strong); font-size: 1.8rem; font-weight: 800; text-decoration: none;
     box-shadow: 0 6px 18px rgba(0,0,0,.28); opacity: .92;
   }
   @media (max-width: 899px) { .edge-arrow { display: grid; } }
@@ -202,8 +206,8 @@
     padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: .95rem;
     background: var(--surface); color: var(--ink); border: 1.5px solid var(--line);
   }
-  .view-buttons button:hover { border-color: var(--accent); }
-  .view-buttons button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .view-buttons button:hover { border-color: var(--pink-strong); }
+  .view-buttons button[aria-pressed="true"] { background: var(--pink); color: var(--pink-ink); border-color: var(--pink-strong); }
   .view-buttons .count { font-size: .78rem; font-weight: 500; opacity: .7; font-variant-numeric: tabular-nums; }
   .kdot { display: inline-block; flex: none; }
   .kind-all .kdot { width: 14px; height: 14px; border-radius: 4px; background: conic-gradient(var(--table) 0 33%, var(--plant) 0 66%, var(--plant-empty) 0); border: 1.5px solid var(--table-stroke); }
@@ -309,7 +313,9 @@
     font: inherit; border-radius: 10px; padding: 9px 14px; cursor: pointer;
     border: 1px solid var(--line); background: var(--bg); color: var(--ink);
   }
-  button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  button.primary { background: var(--pink); color: var(--pink-ink); border-color: var(--pink-strong); font-weight: 700; }
+  button.primary:hover { background: var(--pink-strong); }
+  button:hover { border-color: var(--pink-strong); }
 
   ul.list { list-style: none; margin: 0; padding: 0; }
   ul.list li + li { border-top: 1px solid var(--line); }
@@ -992,7 +998,7 @@ async function saveFromPopup(species, note) {
   // Google Sheet: the family PIN is checked by the Apps Script before saving.
   // Wait for the answer here, so a wrong PIN keeps the pop-up open.
   const pin = getPin() || await askPin("save");
-  if (!pin) { showPopError("Tallentaminen vaatii nimesi ja perheen PIN-koodin."); return; }
+  if (!pin) { showPopError("Tallentaminen vaatii nimesi ja PIN-koodin."); return; }
   showPopError("");
   setPopBusy(true);
   try {

@@ -58,8 +58,8 @@
       .pin-gate[hidden] { display: none !important; }
       .pin-card { width: min(380px, 100%); background: var(--surface, #fff); color: var(--ink, #1f2a22);
         border: 1px solid var(--line, #d9d5c8); border-radius: 18px; padding: 22px 20px 18px; box-shadow: 0 20px 60px rgba(0,0,0,.22); text-align: center; }
-      .pin-card .pin-icon { font-size: 2rem; line-height: 1; }
-      .pin-card h2 { margin: 8px 0 4px; font-size: 1.25rem; }
+      .pin-card .pin-title { margin: 0 0 8px; line-height: 0; }
+      .pin-card .pin-logo { display: block; width: min(250px, 80%); height: auto; margin: 0 auto; }
       .pin-card p { margin: 0 0 14px; color: var(--muted, #66705f); font-size: .92rem; }
       .pin-card .pin-label { display: block; text-align: left; font-size: .85rem; font-weight: 600; color: var(--muted, #66705f); margin: 10px 0 4px; }
       .pin-card input { width: 100%; box-sizing: border-box; font: inherit; font-size: 1.2rem; text-align: center; letter-spacing: .08em;
@@ -67,7 +67,8 @@
       .pin-card input:focus { outline: 2px solid var(--focus, #7aa8ff); outline-offset: 1px; }
       .pin-card .pin-err { color: var(--select, #b5452c); font-weight: 600; font-size: .9rem; margin: 8px 0 0; min-height: 1.2em; }
       .pin-card button.pin-open { width: 100%; margin-top: 10px; font: inherit; font-weight: 700; font-size: 1.05rem; padding: 12px; border-radius: 12px;
-        border: 0; background: var(--ink, #1f2a22); color: var(--bg, #f6f4ee); cursor: pointer; }
+        border: 1.5px solid var(--pink-strong, #c98bb9); background: var(--pink, #e4bad8); color: var(--pink-ink, #241b21); cursor: pointer; }
+      .pin-card button.pin-open:hover { background: var(--pink-strong, #c98bb9); }
       .pin-card button.pin-open:disabled { opacity: .6; cursor: progress; }
       .pin-card button.pin-view { margin-top: 10px; font: inherit; font-size: .88rem; background: none; border: 0; color: var(--muted, #66705f);
         text-decoration: underline; cursor: pointer; padding: 6px; }
@@ -81,8 +82,7 @@
     gate.hidden = true;
     gate.innerHTML = `
       <form class="pin-card" role="dialog" aria-modal="true" aria-labelledby="pin-gate-title" autocomplete="off">
-        <div class="pin-icon" aria-hidden="true">🌱</div>
-        <h2 id="pin-gate-title">Alapihan Puutarha</h2>
+        <h2 id="pin-gate-title" class="pin-title"><img class="pin-logo" src="logo.png" alt="Alapihan Puutarha" width="720" height="394"></h2>
         <p class="pin-why"></p>
         <label class="pin-label" for="pin-gate-name">Kirjaajan nimi</label>
         <input type="text" class="pin-name" id="pin-gate-name" maxlength="40" autocomplete="given-name" enterkeyhint="next">
@@ -134,9 +134,9 @@
     } catch (e) { return "unknown"; }
   }
   const WHY = {
-    open: "Kirjoita nimesi ja perheen PIN-koodi. Ne kysytään vain kerran, kunhan sivua käytetään.",
+    open: "Kirjoita nimesi ja PIN-koodi. Ne kysytään vain kerran, kunhan sivua käytetään.",
     idle: "Sivu oli pitkään käyttämättä. Kirjoita PIN-koodi uudelleen.",
-    save: "Tallentaminen vaatii nimesi ja perheen PIN-koodin. Ne kysytään vain kerran.",
+    save: "Tallentaminen vaatii nimesi ja PIN-koodin. Ne kysytään vain kerran.",
     bad: "PIN-koodi on vaihtunut. Kirjoita uusi PIN-koodi.",
   };
   function show(reason) {

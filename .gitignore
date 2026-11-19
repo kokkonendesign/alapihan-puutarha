@@ -8,3 +8,5 @@ reference/
 # reference photos (kept private)
 *.jpeg
 *.png
+!logo.png
+!docs/logo.png

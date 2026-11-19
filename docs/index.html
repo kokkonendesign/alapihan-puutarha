@@ -5,6 +5,10 @@
 <title>Alapihan Puutarha</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
+  /* button pink, taken from the Alapihan Puutarha logo */
+  :root { --pink: #e4bad8; --pink-strong: #c98bb9; --pink-soft: #f6e7f2; --pink-ink: #241b21; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pink-soft: #4a3446; } }
+  :root[data-theme="dark"] { --pink-soft: #4a3446; }
   :root {
     --bg: #f6f4ee;
     --surface: #ffffff;
@@ -106,12 +110,14 @@
     padding: 8px 12px; border-radius: 999px; font-size: .85rem;
     background: var(--surface); border: 1px solid var(--line); color: var(--ink);
   }
-  .theme-toggle:hover { border-color: var(--accent); }
+  .theme-toggle:hover { border-color: var(--pink-strong); }
   .theme-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .theme-toggle .i-sun { display: none; }
   .theme-toggle.is-dark .i-sun { display: block; }
   .theme-toggle.is-dark .i-moon { display: none; }
   @media (max-width: 480px) { .theme-label { display: none; } .theme-toggle { padding: 9px; } }
+  .logo-h1 { margin: 0 0 4px; line-height: 0; }
+  .logo { display: block; width: min(250px, 62vw); height: auto; }
   h1 { font-size: 1.4rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
   header p { margin: 4px 0 0; color: var(--muted); }
   .status { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: .82rem; color: var(--muted); }
@@ -189,7 +195,9 @@
     font: inherit; border-radius: 10px; padding: 9px 14px; cursor: pointer;
     border: 1px solid var(--line); background: var(--bg); color: var(--ink);
   }
-  button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  button.primary { background: var(--pink); color: var(--pink-ink); border-color: var(--pink-strong); font-weight: 700; }
+  button.primary:hover { background: var(--pink-strong); }
+  button:hover { border-color: var(--pink-strong); }
   main { max-width: 1180px; margin: 0 auto; padding-block: 8px 32px; display: grid; gap: 16px; }
   @media (min-width: 900px) {
     main { grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); align-items: start; }
@@ -260,7 +268,8 @@
 
   /* editing the outdoor tables */
   .edit-bar { background: var(--surface); border-bottom: 1px solid var(--line); padding: 8px 10px; }
-  .edit-start { font-weight: 600; }
+  .edit-start { font-weight: 700; background: var(--pink); color: var(--pink-ink); border-color: var(--pink-strong); }
+  .edit-start:hover { background: var(--pink-strong); }
   .edit-tools { display: grid; gap: 8px; }
   .edit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .edit-hint { flex: 1 1 200px; font-size: .85rem; color: var(--muted); }
@@ -284,21 +293,21 @@
     display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--ink);
     background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
   }
-  .quick a:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .quick a:hover { border-color: var(--pink-strong); background: var(--pink-soft); }
   .quick a b { font-size: 1rem; }
   .quick a span { font-size: .8rem; color: var(--muted); }
   .chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .chips button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 10px; min-width: 0; text-align: left; }
   .chips button b { font-size: .95rem; }
   .chips button span { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  .chips button:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .chips button:hover { border-color: var(--pink-strong); background: var(--pink-soft); }
   .chips button.filled span { color: var(--ink); font-weight: 600; }
 </style>
 </head>
 <body>
 <header>
   <div class="head-text">
-    <h1>Alapihan Puutarha</h1>
+    <h1 class="logo-h1"><img class="logo" src="logo.png" alt="Alapihan Puutarha" width="720" height="394"></h1>
     <p>Napauta kasvihuonetta tai tilaushuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille voit kirjoittaa kasvin suoraan.</p>
     <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
   </div>
@@ -809,7 +818,7 @@ function closePopup() {
 async function saveFromPopup(species, note) {
   if (!popNo || popBusy) return;
   const pin = mode === "sheets" ? (getPin() || await askPin("save")) : "";
-  if (mode === "sheets" && !pin) { showPopError("Tallentaminen vaatii nimesi ja perheen PIN-koodin."); return; }
+  if (mode === "sheets" && !pin) { showPopError("Tallentaminen vaatii nimesi ja PIN-koodin."); return; }
   showPopError("");
   setPopBusy(true);
   try {
