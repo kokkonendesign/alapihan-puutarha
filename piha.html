@@ -442,8 +442,8 @@ const WORLD = {
 /* buildings and tables, already in the turned (local) frame: x, y, width, height */
 /* no = the plant map's number (kasvihuone.html?talo=no); kind + label = the name shown */
 const HOUSES = [
-  { no: "1", kind: "Tilaushuone", label: "1", rect: [27, 532, 70, 336], labelAt: .3 },   // name card higher, clear of Tilaushuone 2's
-  { no: "5", kind: "Tilaushuone", label: "2", rect: [-57, 670, 42, 132] },   // the little greenhouse on the far left
+  { no: "1", kind: "Tilaushuone", label: "A", rect: [27, 532, 70, 336], labelAt: .3 },   // name card higher, clear of Tilaushuone B's
+  { no: "5", kind: "Tilaushuone", label: "B", rect: [-57, 670, 42, 132] },   // the little greenhouse on the far left
   { no: "2", kind: "Kasvihuone", label: "1", rect: [170, 490, 156, 385] },
   { no: "3", kind: "Kasvihuone", label: "2", rect: [421, 543, 120, 449], noArrow: true },   // table 5 sits right at its door
   { no: "4", kind: "Kasvihuone", label: "3", rect: [615, 691, 76, 260] },
@@ -719,7 +719,7 @@ const chips = document.getElementById("chips");
 const quickMain = document.createElement("div"), quickMinor = document.createElement("div");
 quickMain.className = "quick-main"; quickMinor.className = "quick-minor";
 quick.append(quickMain, quickMinor);
-HOUSES.slice().sort((p, q) => (p.kind === "Kasvihuone" ? 0 : 1) - (q.kind === "Kasvihuone" ? 0 : 1) || p.label - q.label).forEach(hs => {
+HOUSES.slice().sort((p, q) => (p.kind === "Kasvihuone" ? 0 : 1) - (q.kind === "Kasvihuone" ? 0 : 1) || String(p.label).localeCompare(String(q.label), "fi", { numeric: true })).forEach(hs => {
   const main = hs.kind === "Kasvihuone";
   const a = document.createElement("a");
   a.href = "kasvihuone.html?talo=" + hs.no;
