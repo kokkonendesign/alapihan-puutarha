@@ -278,7 +278,7 @@
 <header>
   <div class="head-text">
     <h1>Alapihan Puutarha</h1>
-    <p>Napauta kasvihuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille 1–9 voit kirjoittaa kasvin suoraan.</p>
+    <p>Napauta kasvihuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille voit kirjoittaa kasvin suoraan.</p>
     <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
   </div>
   <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Vaihda tummaan tilaan">
@@ -290,7 +290,7 @@
 
 <main>
   <section class="yard-wrap" aria-label="Piha ylhäältä katsottuna">
-    <svg class="yard" id="yard" viewBox="-120 425 900 985" role="group" aria-label="Alapihan Puutarhan piha: neljä kasvihuonetta, ulkopöydät 1–9 ja lampi"></svg>
+    <svg class="yard" id="yard" viewBox="-120 425 900 985" role="group" aria-label="Alapihan Puutarhan piha: neljä kasvihuonetta, ulkopöydät ja lampi"></svg>
     <div class="tip" id="tip" role="presentation"></div>
   </section>
 
@@ -375,17 +375,16 @@ const KASSA = [548, 1048, 56, 44];      // cashier
 const TABLES = [
   { no: "1", parts: [[266, 884, 70, 14]] },
   { no: "2", parts: [[334, 690, 15, 170]] },
-  { no: "3", parts: [[292, 924, 110, 15]] },
   { no: "4", parts: [[402, 760, 15, 185]] },
   { no: "5", parts: [[425, 999, 112, 14]] },
   { no: "6", parts: [[592, 770, 15, 175]] },
   { no: "7", parts: [[640, 1035, 14, 62], [612, 1083, 42, 14]] },
   { no: "8", parts: [[180, 884, 52, 14]] },
-  // on the grass between greenhouse 2 and the lake, turned diagonally
-  { no: "9", parts: [[147, 983, 70, 14]], rotate: [-30, 182, 990] },
+  // between greenhouse 2 and the lake: same size as table 4, lying along the sandy road
+  { no: "9", parts: [[122.5, 949.5, 185, 15]], rotate: [15, 215, 957] },
 ];
 /* where each table's number badge sits */
-const BADGE = { "1": [301, 870], "2": [341, 674], "3": [347, 911], "4": [409, 744], "5": [481, 985], "6": [599, 754], "7": [668, 1066], "8": [206, 870], "9": [238, 1001] };
+const BADGE = { "1": [301, 870], "2": [341, 674], "4": [409, 744], "5": [481, 985], "6": [599, 754], "7": [668, 1066], "8": [206, 870], "9": [205, 992] };
 /* trees (local frame): x, y, size */
 const TREES = [
   [-92, 470, 34], [-60, 450, 26], [-98, 560, 30], [-96, 640, 24], [-100, 860, 30], [-70, 905, 22], [-98, 960, 26],
