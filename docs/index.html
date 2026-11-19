@@ -290,6 +290,14 @@
   svg.yard.editing .gh { cursor: default; }
   svg.yard.editing .gh:hover .lift { transform: none; }
 
+  .toast {
+    position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom, 0px)); z-index: 60;
+    transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+    max-width: min(460px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 14px;
+    background: var(--ink); color: var(--bg); font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.25); text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast[data-kind="error"] { background: #a33a2a; color: #fff; }
   /* panel */
   .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .quick a {
@@ -999,21 +1007,32 @@ function layoutRow(t) {
   if (t.parts.length === 1) g.len = lengthOf(t);
   return JSON.stringify(g);
 }
+/* Save a table's place (or that it was removed). Returns true when the sheet took it.
+   If the sheet refuses, the table goes straight back to where it was and a clear
+   message says so; after a changed PIN the save is tried again with the new one. */
 async function saveLayout(t, del = false) {
+  const key = layoutKey(t.no), before = labels[key];
   const note = del ? JSON.stringify({ del: 1 }) : layoutRow(t);
-  labels[layoutKey(t.no)] = { species: "", note };   // show the change right away
+  labels[key] = { species: "", note };   // show the change right away
   refresh();
   try {
-    await postRow(layoutKey(t.no), tableName(t.no) + " · paikka pihalla", "", note, getPin());
+    await postRow(key, tableName(t.no) + " · paikka pihalla", "", note, getPin());
+    return true;
   } catch (e) {
+    // undo on screen, unless a newer change of this table is already on its way
+    if (!rowLatest[key] || rowLatest[key].note === note) {
+      if (before) labels[key] = before; else delete labels[key];
+      rowLatest[key] = before;
+      refresh();
+    }
     if (e && e.code === "bad_pin") {
       setPin("");
-      setStatus("offline", "PIN-koodi on vaihtunut: pöydän muutosta ei tallennettu.");
-      askPin("bad").then(pin => { if (pin) saveLayout(t, del); });
-    } else {
-      setStatus("offline", "Pöydän muutosta ei tallennettu. Tarkista verkkoyhteys ja yritä uudelleen.");
+      toast("PIN-koodi on vaihtunut, joten muutosta ei tallennettu. Kirjoita uusi PIN-koodi.", "error");
+      const pin = await askPin("bad");
+      return pin ? saveLayout(t, del) : false;
     }
-    if (mode === "sheets") loadSheet().catch(() => {});   // put the table back where the sheet has it
+    toast("Muutosta ei tallennettu. Tarkista verkkoyhteys ja yritä uudelleen.", "error");
+    return false;
   }
 }
 
@@ -1047,12 +1066,28 @@ async function deleteTable(no) {
   if (!confirm(`Poistetaanko ${tableName(no)}?${extra}`)) return;
   if (mode === "sheets" && !getPin() && !(await askPin("save"))) return;
   if (selNo === no) selectTable(null);
-  await saveLayout(t, true);
+  if (!(await saveLayout(t, true))) return;   // refused: the table is back and a message says why
   if (extra) {
     try { await postRow(tableId(no), tableName(no) + " (piha)", "", "", getPin()); labels[tableId(no)] = { species: "", note: "" }; refresh(); }
     catch (e) { /* the table is gone; its old label stays in the sheet */ }
   }
-  setStatus(statusEl.dataset.state, `${tableName(no)} poistettu. Uuden pöydän saa "Muokkaa ulkopöytiä" → "Lisää pöytä".`);
+  toast(`${tableName(no)} poistettu.`, "ok");
+}
+
+/* A short message at the bottom of the screen (easy to see on a phone). */
+let toastTimer = null;
+function toast(text, kind) {
+  let el = document.getElementById("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast"; el.className = "toast"; el.setAttribute("role", "status");
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.dataset.kind = kind || "ok";
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), kind === "error" ? 7000 : 3500);
 }
 document.getElementById("t-del").onclick = () => { if (selNo) deleteTable(selNo); };
 
