@@ -301,6 +301,7 @@
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   .toast[data-kind="error"] { background: #a33a2a; color: #fff; }
   /* panel */
+  .intro p { margin: 0; line-height: 1.5; }
   .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .quick a {
     display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--ink);
@@ -319,7 +320,6 @@
 <header>
   <div class="head-text">
     <h1 class="logo-h1"><img class="logo" src="logo.png" alt="Alapihan Puutarha" width="720" height="390"></h1>
-    <p>Napauta kasvihuonetta tai tilaushuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille voit kirjoittaa kasvin suoraan. Pöydän voi poistaa pitämällä sitä pohjassa.</p>
     <div class="status" id="status" data-state="loading">Ladataan merkintöjä…</div>
   </div>
   <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Vaihda tummaan tilaan">
@@ -354,6 +354,9 @@
   </section>
 
   <aside class="panel">
+    <div class="card intro">
+      <p>Napauta kasvihuonetta tai tilaushuonetta, niin pääset sisälle sen kasvikarttaan. Ulkopöydille voit kirjoittaa kasvin suoraan. Pöydän voi poistaa pitämällä sitä pohjassa.</p>
+    </div>
     <div class="card">
       <h2>Kasvihuoneet ja tilaushuoneet</h2>
       <div class="quick" id="quick"></div>
