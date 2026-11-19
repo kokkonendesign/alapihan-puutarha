@@ -126,9 +126,12 @@
   .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--plant); }
   .status[data-state="loading"]::before { background: var(--accent); }
   .status[data-state="readonly"]::before, .status[data-state="offline"]::before { background: var(--muted); }
-    position: absolute; pointer-events: none; z-index: 5;
+  /* hover tip next to the mouse (mouse only) */
+  .tip {
+    position: absolute; left: 0; top: 0; pointer-events: none; z-index: 5;
     background: var(--ink); color: var(--bg); padding: 6px 10px; border-radius: 8px;
-    font-size: 13px; max-width: 220px; opacity: 0; transition: opacity .1s; transform: translate(-50%, calc(-100% - 12px));
+    font-size: 13px; line-height: 1.35; max-width: 220px; white-space: normal;
+    opacity: 0; transition: opacity .1s; transform: translate(-50%, calc(-100% - 12px));
   }
   .tip.show { opacity: 1; }
   .tip b { display: block; }
@@ -308,17 +311,17 @@
   /* panel */
   .intro p { margin: 0; line-height: 1.5; }
   .quick { display: grid; gap: 8px; }
-  .quick-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .quick-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; container-type: inline-size; }
   .quick-minor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .quick a {
     display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--ink);
     background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
   }
   .quick a:hover { border-color: var(--pink-strong); background: var(--pink-soft); }
-  .quick-main a { padding: 12px 10px; min-height: 64px; justify-content: center; }
-  .quick-main .qname { font-size: 1rem; line-height: 1.2; }
+  .quick-main a { padding: 12px 8px; min-height: 64px; justify-content: center; align-items: center; text-align: center; }
+  .quick-main .qname { font-size: clamp(.72rem, 4.1cqi, .95rem); line-height: 1.2; white-space: nowrap; }   /* "Kasvihuone 1" on one line */
   .quick-minor a { padding: 6px 10px; border-radius: 10px; }
-  .quick-minor .qname { font-size: .85rem; font-weight: 400; }
+  .quick-minor .qname { font-size: .74rem; font-weight: 400; }
   .quick .qcount { font-size: .78rem; color: var(--muted); }
   .quick-minor .qcount { font-size: .72rem; }
   .chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
