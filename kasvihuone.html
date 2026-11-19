@@ -369,6 +369,45 @@
    here to set the default labels everyone sees. Labels edited in the
    page are saved in this browser on top of these defaults.
 ------------------------------------------------------------------- */
+/* Which greenhouse this is: kasvihuone.html?talo=1…5 (opened from the yard page).
+   Greenhouse 2 keeps the original codes (T4-S1…); the others get a prefix
+   (K1-T4-S1…), so all four share one spreadsheet without mixing up. */
+const HOUSES = { "1": "K1-", "2": "", "3": "K3-", "4": "K4-", "5": "K5-" };
+const HOUSE_NAMES = { "1": "Tilaushuone 1", "2": "Kasvihuone 2", "3": "Kasvihuone 3", "4": "Kasvihuone 4", "5": "Tilaushuone 2" };
+const HOUSE_NO = (() => { try { const n = new URLSearchParams(location.search).get("talo"); return n in HOUSES ? n : "2"; } catch (e) { return "2"; } })();
+const HOUSE_PREFIX = HOUSES[HOUSE_NO];
+const HOUSE_NAME = HOUSE_NAMES[HOUSE_NO];
+const IS_ORIGINAL = HOUSE_NO === "2";   // Kasvihuone 2: the hand-traced layout below, unchanged
+
+/* The other houses: a floor plan with the same proportions as the house seen
+   from above on the yard page (outer width × length there), scaled the same
+   way as Kasvihuone 2 (156 × 385 there → 784 × 1110 here). Tables run front
+   to back with walkways between them; a wide house also gets floor strips
+   (Lattia) and outermost kukkakourut along its walls. */
+const OUTER = { "1": [70, 336], "3": [120, 449], "4": [76, 260], "5": [42, 132] };
+function genLayout(no) {
+  const [ow, oh] = OUTER[no];
+  const W = Math.round(ow * 784 / 156), H = Math.round(oh * 1110 / 385);
+  const floors = W >= 500, n = W >= 500 ? 3 : 2;
+  const TOP = 90, LEN = H - TOP - 110;
+  const SIDE = 16, WALK = 70, MARGIN = 8, FLOOR_X = 6, FLOOR_W = 38;   // SIDE = side strip + gap
+  const x0 = floors ? FLOOR_X + FLOOR_W + MARGIN : MARGIN;
+  const x1 = floors ? W - FLOOR_X - FLOOR_W - MARGIN : W - MARGIN;
+  const tw = (x1 - x0 - (n - 1) * WALK) / n - 2 * SIDE;
+  const places = n === 2 ? ["vasen seinä", "oikea seinä"] : ["vasen seinä", "keskellä", "oikea seinä"];
+  const tables = places.map((place, i) => ({
+    id: "T" + (i + 1), place, dir: "v", lines: tw >= 60 ? 4 : 2,
+    rect: [Math.round(x0 + i * (tw + 2 * SIDE + WALK) + SIDE), TOP, Math.round(tw), LEN],
+  }));
+  if (floors) tables.push(
+    { id: "LV", title: "Lattia, vasen", place: "vasen reuna", dir: "v", floor: true, rect: [FLOOR_X, TOP, FLOOR_W, LEN] },
+    { id: "LO", title: "Lattia, oikea", place: "oikea reuna", dir: "v", floor: true, rect: [W - FLOOR_X - FLOOR_W, TOP, FLOOR_W, LEN] });
+  return { W, H, TOP, LEN, floors, tables };
+}
+const LAYOUT = IS_ORIGINAL
+  ? { W: 784, H: 1110, TOP: 112, LEN: 800, floors: true }
+  : genLayout(HOUSE_NO);
+
 /* Long tables each carry 4 narrow planting lines drawn on top,
    numbered 1–4 from the left. The table and each line are labelled separately. */
 const LINE_COUNT = 4;
@@ -376,7 +415,7 @@ const LINE_COUNT = 4;
    strip along each long side split into 3 parts. dir "v" = runs front to back,
    "h" = runs left to right (the two short tables on the back wall). */
 const SECTION_COUNT = 6, SIDE_PARTS = 3;
-const TABLES = [
+const ORIGINAL_TABLES = [
   { id: "T1", place: "takana vasemmalla",               dir: "h", rect: [60, 18, 192, 50] },
   { id: "T2", place: "takana oikealla",              dir: "h", rect: [532, 18, 192, 50] },
   { id: "T3", place: "vasen seinä",               dir: "v", rect: [100, 112, 83, 800] },
@@ -388,6 +427,7 @@ const TABLES = [
   { id: "LV", title: "Lattia, vasen", place: "vasen reuna", dir: "v", floor: true, rect: [6, 112, 38, 800] },
   { id: "LO", title: "Lattia, oikea", place: "oikea reuna", dir: "v", floor: true, rect: [740, 112, 38, 800] },
 ];
+const TABLES = IS_ORIGINAL ? ORIGINAL_TABLES : LAYOUT.tables;
 const LINED_TABLES = TABLES.filter(t => t.dir === "v" && !t.floor);
 // side strips only on the long tables (not on T1/T2 by the back wall)
 const SIDES = { v: [["L", "vasen sivu"], ["R", "oikea sivu"]], h: [] };
@@ -402,22 +442,8 @@ function partWhere(t, n) {
   return " (keskellä)";
 }
 
-const DEFAULT_SECTIONS = [
-  ...TABLES.flatMap(t => [
-    ...Array.from({ length: SECTION_COUNT }, (_, i) => ({
-      id: `${t.id}-S${i + 1}`, kind: "table", part: "main", group: "Pöydät",
-      name: `${t.title || "Pöytä " + t.id} · osa ${i + 1}/${SECTION_COUNT}${sectionWhere(t, i + 1)}`, species: "", note: "",
-      floor: !!t.floor,
-    })),
-    ...(t.floor ? [] : SIDES[t.dir]).flatMap(([code, sideName]) => Array.from({ length: SIDE_PARTS }, (_, i) => ({
-      id: `${t.id}-${code}${i + 1}`, kind: "table", part: "side", group: "Pöydät",
-      name: `Pöytä ${t.id} · ${sideName}, osa ${i + 1}/${SIDE_PARTS}${partWhere(t, i + 1)}`, species: "", note: "",
-    }))),
-  ]),
-  ...LINED_TABLES.flatMap(t => Array.from({ length: LINE_COUNT }, (_, i) => ({
-    id: `${t.id}-${i + 1}`, kind: "lane", group: `Kukkakourut pöydällä ${t.id} (${t.place})`,
-    name: `Kukkakouru ${i + 1}, pöytä ${t.id}`, species: "", note: "",
-  }))),
+// Kasvihuone 2's own extra sections
+const ORIGINAL_EXTRAS = [
   { id: "T1-1", kind: "lane", group: "Kukkakourut pöydällä T1", name: "Kukkakouru, pöytä T1", species: "", note: "" },
   { id: "T2-1", kind: "lane", group: "Kukkakourut pöydällä T2", name: "Kukkakouru, pöytä T2", species: "", note: "" },
   { id: "KE", kind: "lane", group: "Kukkakourut reunimmaiset", name: "Kukkakouru, sisäänkäynnin vasemmalla puolella", species: "", note: "" },
@@ -432,6 +458,34 @@ const DEFAULT_SECTIONS = [
   { id: "H7", kind: "plants", group: "Amppelit", name: "Amppelit, pöydän T6 yllä",  species: "", note: "" },
 ];
 
+const DEFAULT_SECTIONS = [
+  ...TABLES.flatMap(t => [
+    ...Array.from({ length: SECTION_COUNT }, (_, i) => ({
+      id: `${t.id}-S${i + 1}`, kind: "table", part: "main", group: "Pöydät",
+      name: `${t.title || "Pöytä " + t.id} · osa ${i + 1}/${SECTION_COUNT}${sectionWhere(t, i + 1)}`, species: "", note: "",
+      floor: !!t.floor,
+    })),
+    ...(t.floor ? [] : SIDES[t.dir]).flatMap(([code, sideName]) => Array.from({ length: SIDE_PARTS }, (_, i) => ({
+      id: `${t.id}-${code}${i + 1}`, kind: "table", part: "side", group: "Pöydät",
+      name: `Pöytä ${t.id} · ${sideName}, osa ${i + 1}/${SIDE_PARTS}${partWhere(t, i + 1)}`, species: "", note: "",
+    }))),
+  ]),
+  ...LINED_TABLES.flatMap(t => Array.from({ length: t.lines || LINE_COUNT }, (_, i) => ({
+    id: `${t.id}-${i + 1}`, kind: "lane", group: `Kukkakourut pöydällä ${t.id} (${t.place})`,
+    name: `Kukkakouru ${i + 1}, pöytä ${t.id}`, species: "", note: "",
+  }))),
+  ...(IS_ORIGINAL ? ORIGINAL_EXTRAS : genExtras()),
+];
+function genExtras() {
+  return [
+    ...(LAYOUT.floors ? [
+      { id: "KR-L", kind: "lane", group: "Kukkakourut reunimmaiset", name: "Kukkakouru reunimmainen, vasen", species: "", note: "" },
+      { id: "KR-R", kind: "lane", group: "Kukkakourut reunimmaiset", name: "Kukkakouru reunimmainen, oikea", species: "", note: "" },
+    ] : []),
+    ...LINED_TABLES.map((t, i) => ({ id: "H" + (i + 1), kind: "plants", group: "Amppelit", name: `Amppelit, pöydän ${t.id} yllä`, species: "", note: "" })),
+  ];
+}
+
 /* The three tabs above the map: each shows one kind of section. */
 const TABS = [
   { kind: "all",    label: "Kaikki",      hint: "Napauta pöytää, kukkakourua tai amppeliriviä nähdäksesi, mitä siinä kasvaa." },
@@ -442,14 +496,14 @@ const TABS = [
 
 /* Geometry, traced from the hand sketch (units are SVG viewBox units). */
 const range = (n, a, b) => Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));
-const W = 784, H = 1110;           // inner width/height of the greenhouse
-const DOOR = [342, 442];           // entrance gap in the front wall
+const W = LAYOUT.W, H = LAYOUT.H;  // inner width/height of the greenhouse (784 × 1110 in Kasvihuone 2)
+const DOOR = [W / 2 - 50, W / 2 + 50];   // entrance gap in the front wall ([342, 442] in Kasvihuone 2)
 // extra floor added outside the original sketch on the left and right,
 // where the outermost kukkakourut (reunimmaiset) run along the walls
 const EDGE_LANE_X = 25, EDGE_LANE_W = 12;
-const FRAME_BADGE_Y = 95;
+const FRAME_BADGE_Y = LAYOUT.TOP - 17;
 const SIDE_W = 14, SIDE_GAP = 2, PART_GAP = 4;
-const GEOM = {
+const GEOM = IS_ORIGINAL ? {
   H1: { pts: range(5, 78, 230).map(x => [x, 52]),  r: 11, badge: [272, 52] },
   H2: { pts: range(5, 554, 706).map(x => [x, 52]), r: 11, badge: [512, 52] },
   H3: { pts: range(17, 130, 898).map(y => [114, y]), r: 13, badge: [114, 952] },
@@ -457,7 +511,13 @@ const GEOM = {
   H5: { pts: range(14, 70, 714).map(x => [x, 1010]), r: 14, badge: [392, 1056], label: [392, 1056] },
   H6: { pts: range(17, 130, 898).map(y => [279, y]), r: 13, badge: [279, 952] },
   H7: { pts: range(17, 130, 898).map(y => [505, y]), r: 13, badge: [505, 952] },
-};
+} : {};
+// other houses: one amppeli row above the middle of each long table
+if (!IS_ORIGINAL) LINED_TABLES.forEach((t, i) => {
+  const [x, y, w, h] = t.rect, cx = x + w / 2;
+  const count = Math.max(3, Math.round((h - 32) / 48) + 1);
+  GEOM["H" + (i + 1)] = { pts: range(count, y + 18, y + h - 14).map(py => [cx, py]), r: 13, badge: [cx, y + h + 40] };
+});
 for (const t of TABLES) {
   const [x, y, w, h] = t.rect;
   const len = t.dir === "v" ? h : w;
@@ -482,8 +542,8 @@ for (const t of TABLES) {
 
 const LINE_W = 9, LINE_HIT_W = 17, LINE_INSET = 10;
 for (const t of LINED_TABLES) {
-  const [x, y, w, h] = t.rect, lw = w / LINE_COUNT;
-  for (let i = 0; i < LINE_COUNT; i++) {
+  const lines = t.lines || LINE_COUNT, [x, y, w, h] = t.rect, lw = w / lines;
+  for (let i = 0; i < lines; i++) {
     const cx = x + i * lw + lw / 2;
     GEOM[`${t.id}-${i + 1}`] = {
       rect: [cx - LINE_W / 2, y + LINE_INSET, LINE_W, h - LINE_INSET * 2],
@@ -497,13 +557,13 @@ for (const t of TABLES.filter(t => t.dir === "h")) {
   const [x, y, w, h] = t.rect, cy = y + 10;
   GEOM[`${t.id}-1`] = { rect: [x + 10, cy - LINE_W / 2, w - 20, LINE_W], hit: [x + 6, cy - LINE_HIT_W / 2, w - 12, LINE_HIT_W] };
 }
-// kukkakouru along the front wall, left of the entrance
-GEOM.KE = { rect: [12, 1078, DOOR[0] - 10 - 12, EDGE_LANE_W], hit: [8, 1072, DOOR[0] - 6 - 8, EDGE_LANE_W + 12] };
+// kukkakouru along the front wall, left of the entrance (Kasvihuone 2 only)
+if (IS_ORIGINAL) GEOM.KE = { rect: [12, 1078, DOOR[0] - 10 - 12, EDGE_LANE_W], hit: [8, 1072, DOOR[0] - 6 - 8, EDGE_LANE_W + 12] };
 // outermost kukkakourut along the left and right walls, same length as the long tables
-for (const [id, cx] of [["KR-L", EDGE_LANE_X], ["KR-R", W - EDGE_LANE_X]]) {
+if (LAYOUT.floors) for (const [id, cx] of [["KR-L", EDGE_LANE_X], ["KR-R", W - EDGE_LANE_X]]) {
   GEOM[id] = {
-    rect: [cx - EDGE_LANE_W / 2, 112, EDGE_LANE_W, 800],
-    hit: [cx - EDGE_LANE_W / 2 - 6, 108, EDGE_LANE_W + 12, 808],
+    rect: [cx - EDGE_LANE_W / 2, LAYOUT.TOP, EDGE_LANE_W, LAYOUT.LEN],
+    hit: [cx - EDGE_LANE_W / 2 - 6, LAYOUT.TOP - 4, EDGE_LANE_W + 12, LAYOUT.LEN + 8],
   };
 }
 
@@ -516,14 +576,6 @@ for (const [id, cx] of [["KR-L", EDGE_LANE_X], ["KR-R", W - EDGE_LANE_X]]) {
    Opened as a local file with no SHEETS_URL: saved in this browser only. */
 const SHEETS_URL = "https://script.google.com/macros/s/AKfycbznsgru95KJ0qFghMDFFLfXNAGm5gcX5TbWfN2X-fLqHAeFokBOixIblv6h9QTYvUDA/exec"; // Apps Script web app (ends in /exec)
 const SHEETS_POLL_MS = 15000;
-/* Which greenhouse this is: kasvihuone.html?talo=1…5 (opened from the yard page).
-   Greenhouse 2 keeps the original codes (T4-S1…); the others get a prefix
-   (K1-T4-S1…), so all four share one spreadsheet without mixing up. */
-const HOUSES = { "1": "K1-", "2": "", "3": "K3-", "4": "K4-", "5": "K5-" };
-const HOUSE_NAMES = { "1": "Tilaushuone 1", "2": "Kasvihuone 2", "3": "Kasvihuone 3", "4": "Kasvihuone 4", "5": "Tilaushuone 2" };
-const HOUSE_NO = (() => { try { const n = new URLSearchParams(location.search).get("talo"); return n in HOUSES ? n : "2"; } catch (e) { return "2"; } })();
-const HOUSE_PREFIX = HOUSES[HOUSE_NO];
-const HOUSE_NAME = HOUSE_NAMES[HOUSE_NO];
 const STORE_KEY = "alapiha-greenhouse-v1" + (HOUSE_PREFIX ? "-" + HOUSE_NO : "");
 const PIN_KEY = "alapiha-greenhouse-pin";  // family PIN, remembered on this device after it works once
 function getPin() { try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; } }
@@ -684,6 +736,9 @@ const el = (tag, attrs = {}, parent) => {
 function truncate(str, max) { return str.length > max ? str.slice(0, max - 1) + "…" : str; }
 
 function drawStatic() {
+  svg.setAttribute("viewBox", `-24 -24 ${W + 48} ${H + 100}`);   // "-24 -24 832 1210" in Kasvihuone 2
+  // smaller houses are drawn smaller than Kasvihuone 2 (never below 60 %, so they stay easy to tap)
+  if (!IS_ORIGINAL) svg.style.maxHeight = `calc((100vh - 150px) * ${Math.min(1, Math.max(0.6, (H + 100) / 1210)).toFixed(3)})`;
   el("rect", { x: 0, y: 0, width: W, height: H, class: "floor" }, svg);
   // walls with an entrance gap in the bottom wall
   el("path", { class: "wall", d: `M${DOOR[0]} ${H} H0 V0 H${W} V${H} H${DOOR[1]}` }, svg);
