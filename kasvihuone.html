@@ -137,6 +137,10 @@
   .sec.plants .pot { fill: var(--plant); stroke: var(--plant-stroke); stroke-width: 2; transition: fill .15s, stroke .15s; }
   .sec.plants.empty .pot { fill: var(--plant-empty); }
   .amp-row { pointer-events: none; }
+  /* each plant has its own colour (--pc, set by applyColors) */
+  svg.map .sec.colored .pot, svg.map .sec.colored .shape { fill: var(--pc); }
+  svg.map .sec.colored .pot { stroke: color-mix(in srgb, var(--pc) 70%, #000); }
+  svg.map .sec.lane.colored .shape { stroke: color-mix(in srgb, var(--pc) 70%, #000); }
   svg.map { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   svg.map.painting { cursor: crosshair; }
   svg.map .sec.plants, svg.map .sec.plants *, svg.map.locked, svg.map.locked * { touch-action: none !important; }
@@ -368,7 +372,8 @@
   ul.counts button { width: 100%; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; text-align: left;
     font: inherit; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; cursor: pointer; }
   ul.counts button:hover { border-color: var(--pink); }
-  ul.counts .c-num { grid-row: span 2; min-width: 2.2em; text-align: center; font-weight: 700; font-size: 1.05rem; color: var(--pink-strong); }
+  ul.counts .c-num { grid-row: span 2; min-width: 2.2em; text-align: center; font-weight: 700; font-size: 1rem; color: var(--pink-strong);
+    border-radius: 999px; padding: 3px 6px; text-shadow: 0 1px 1px rgba(0,0,0,.25); }
   ul.counts .c-name { font-weight: 600; }
   ul.counts .c-where { font-size: .8rem; color: var(--muted); }
   .group-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
@@ -1434,6 +1439,8 @@ function renderCounts() {
     const where = document.createElement("span"); where.className = "c-where";
     where.textContent = Object.entries(e.kinds).map(([k, n]) => `${n} ${KIND_WORDS[k][n === 1 ? 0 : 1]}`).join(", ");
     const num = document.createElement("span"); num.className = "c-num"; num.textContent = e.total;
+    const c = colorOf(e.name);
+    if (c) { num.style.background = c; num.style.color = "#fff"; }
     b.append(num, name, where);
     b.title = "Näytä kartalla";
     b.onclick = () => { search.value = search.value.trim().toLowerCase() === e.name.toLowerCase() ? "" : e.name; renderList(); applySearch(); };
@@ -1465,7 +1472,35 @@ async function commit(s) {
    this now only refreshes the view buttons and their counts. */
 function renderList() {
   renderTabs();
+  applyColors();
 }
+
+/* Plant colours: every plant in this greenhouse gets its own colour, so a new
+   patch stands out. A plant keeps its colour (picked from its name); only if
+   two plants would share one does the later one (alphabetically) move on. */
+const PLANT_COLORS = ["#d9534f", "#f2c94c", "#5f9b62", "#3fa7a0", "#4f8fd6", "#8e6cc9",
+  "#e27aa8", "#8d6e63", "#a3c94f", "#b55fb5", "#2f6f9f", "#7a8c99"];
+let plantColor = new Map();
+function nameHash(t) { let h = 0; for (const c of t) h = (h * 31 + c.codePointAt(0)) >>> 0; return h; }
+function applyColors() {
+  const names = [...new Set(sections.map(s => s.species.trim().toLowerCase()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fi"));
+  const used = new Set();
+  plantColor = new Map();
+  for (const n of names) {
+    let i = nameHash(n) % PLANT_COLORS.length;
+    for (let k = 0; k < PLANT_COLORS.length && used.has(i); k++) i = (i + 1) % PLANT_COLORS.length;
+    used.add(i);
+    plantColor.set(n, PLANT_COLORS[i]);
+  }
+  for (const s of sections) {
+    const g = nodes[s.id]?.g;
+    if (!g) continue;
+    const c = plantColor.get(s.species.trim().toLowerCase());
+    g.classList.toggle("colored", !!c);
+    if (c) g.style.setProperty("--pc", c); else g.style.removeProperty("--pc");
+  }
+}
+const colorOf = name => plantColor.get(String(name || "").trim().toLowerCase());
 
 /* ---------------- search ----------------
    Searching looks through all three tabs at once. */
