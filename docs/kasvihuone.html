@@ -148,7 +148,6 @@
   svg.map.painting { cursor: crosshair; }
   svg.map .sec.plants, svg.map .sec.plants *, svg.map.locked, svg.map.locked * { touch-action: none !important; }
   svg.map.locked { overscroll-behavior: contain; }
-  .amp-outline { fill: none; stroke: var(--plant-stroke); stroke-width: 1.5; stroke-dasharray: 3 5; opacity: .45; }
   .sec.plants .hit { fill: transparent; stroke: transparent; stroke-width: 2; rx: 14; pointer-events: none; }
   .sec.plants .tap { fill: transparent; }
   /* pöytä sections and side strips */
@@ -1040,12 +1039,11 @@ function drawSections() {
     el("text", { class: "lane-num", x: nx, y: ny }, svg).textContent = s.id.split("-")[1];
   }
 
-  // each amppeli row: a faint outline and its number (not clickable), then the pots
+  // each amppeli row: its number (not clickable), then the pots
   for (const row of AMPPELI_ROWS) {
     const g = GEOM[row.id], xs = g.pts.map(p => p[0]), ys = g.pts.map(p => p[1]), pad = g.r + 7;
     const frame = el("g", { class: "amp-row" }, svg);
     const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
-    el("rect", { class: "amp-outline", x: x0, y: y0, width: Math.max(...xs) + pad - x0, height: Math.max(...ys) + pad - y0, rx: 14 }, frame);
     drawBadge(frame, g.badge[0], g.badge[1], row.id);
   }
   sections.filter(s => s.kind === "plants").forEach(drawSection);
