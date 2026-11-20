@@ -1495,9 +1495,8 @@ function renderCounts() {
     const c = colorOf(e.name);
     if (c) { num.style.background = c; num.style.color = "#fff"; }
     if (e.at) {
-      const d = new Date(e.at), p2 = n => String(n).padStart(2, "0");
       const date = document.createElement("span"); date.className = "c-date";
-      date.textContent = `(${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)})`;
+      date.textContent = `(${fmtDate(e.at)})`;
       date.title = "Viimeksi päivitetty";
       name.append(" ", date);
     }
@@ -1508,6 +1507,73 @@ function renderCounts() {
     ul.appendChild(li);
   });
   detail.appendChild(ul);
+  const dl = document.createElement("div"); dl.className = "btns";
+  const x = document.createElement("button"); x.type = "button"; x.className = "primary"; x.textContent = "Lataa Excel";
+  x.title = "Lataa tämän huoneen kasvit Excel-tiedostona";
+  x.onclick = () => downloadExcel(x);
+  dl.appendChild(x);
+  detail.appendChild(dl);
+}
+
+/* "Lataa Excel": this greenhouse's plants as an .xlsx file – a summary per
+   plant, and every marked spot grouped by plant. */
+const fmtDate = ms => {
+  if (!ms) return "";
+  const d = new Date(ms), p2 = n => String(n).padStart(2, "0");
+  return `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)}`;
+};
+let xlsxLoading = null;
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  xlsxLoading = xlsxLoading || new Promise((resolve, reject) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    sc.onload = () => resolve(window.XLSX);
+    sc.onerror = () => { xlsxLoading = null; reject(new Error("load failed")); };
+    document.head.appendChild(sc);
+  });
+  return xlsxLoading;
+}
+async function downloadExcel(btn) {
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Tehdään tiedostoa…";
+  try {
+    const XLSX = await loadXlsx();
+    const kindName = s => s.floor ? "Lattia" : s.kind === "plants" ? "Amppeli" : s.kind === "lane" ? "Kukkakouru" : s.part === "side" ? "Pöydän sivukaista" : "Pöydän osa";
+    const marked = sections.filter(s => s.species.trim());
+    const byPlant = new Map();
+    for (const s of marked) {
+      const key = s.species.trim().toLowerCase();
+      if (!byPlant.has(key)) byPlant.set(key, { name: s.species.trim(), spots: [] });
+      byPlant.get(key).spots.push(s);
+    }
+    const plants = [...byPlant.values()].sort((a, b) => b.spots.length - a.spots.length || a.name.localeCompare(b.name, "fi"));
+    const count = (e, k) => e.spots.filter(s => (s.floor ? "table" : s.kind) === k).length;
+
+    const summary = [["Kasvi", "Yhteensä", "Amppelit", "Pöydän osat", "Kukkakourut", "Viimeksi päivitetty"]];
+    plants.forEach(e => summary.push([e.name, e.spots.length, count(e, "plants"), count(e, "table"), count(e, "lane"),
+      fmtDate(Math.max(0, ...e.spots.map(s => s.at || 0)))]));
+    summary.push(["Yhteensä", marked.length, marked.filter(s => s.kind === "plants").length,
+      marked.filter(s => s.kind === "table").length, marked.filter(s => s.kind === "lane").length, ""]);
+
+    const spots = [["Kasvi", "Tyyppi", "Koodi", "Paikka", "Muistiinpanot", "Päivitetty"]];
+    const kindOrder = s => ({ plants: 0, table: 1, lane: 2 })[s.kind];
+    plants.forEach(e => e.spots.slice().sort((a, b) => kindOrder(a) - kindOrder(b))
+      .forEach(s => spots.push([e.name, kindName(s), s.id, s.name, s.note, fmtDate(s.at)])));
+
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.aoa_to_sheet(summary);
+    ws1["!cols"] = [{ wch: 26 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 18 }];
+    const ws2 = XLSX.utils.aoa_to_sheet(spots);
+    ws2["!cols"] = [{ wch: 22 }, { wch: 18 }, { wch: 10 }, { wch: 46 }, { wch: 36 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws1, "Yhteenveto");
+    XLSX.utils.book_append_sheet(wb, ws2, "Kaikki kohdat");
+    XLSX.writeFile(wb, `${HOUSE_NAME} – kasvit ${fmtDate(Date.now())}.xlsx`);
+  } catch (e) {
+    alert("Excel-tiedostoa ei saatu tehtyä. Tarkista verkkoyhteys ja yritä uudelleen.");
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
 }
 
 async function commit(s) {
