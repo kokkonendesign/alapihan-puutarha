@@ -1048,7 +1048,27 @@ function tapAmp(id) {
    chosen. A finger that starts on an amppeli never scrolls or zooms the page, and
    in the Amppelit tab (or while pots are chosen) the whole map stays still. */
 let paint = null, skipClick = false, touchPick = null;
-const potAt = (x, y) => document.elementFromPoint(x, y)?.closest(".sec.plants")?.dataset.id || null;
+const potAt = (x, y) => document.elementFromPoint(x, y)?.closest(".sec.plants")?.dataset.id || nearPot(x, y);
+/* The amppeli nearest to a screen point, if the finger is close enough to it –
+   so a finger doesn't have to land exactly on the small circle. */
+const NEAR = 26;   // map units around a pot that still count (pots are ~48 apart in a row)
+function nearPot(x, y) {
+  const m = svg.getScreenCTM();
+  if (!m) return null;
+  const p = new DOMPoint(x, y).matrixTransform(m.inverse());
+  let best = null, bestD = NEAR;
+  for (const s of sections) {
+    if (s.kind !== "plants") continue;
+    const [cx, cy] = GEOM[s.id].pt, d = Math.hypot(cx - p.x, cy - p.y);
+    if (d < bestD) { best = s.id; bestD = d; }
+  }
+  return best;
+}
+// a quick slide jumps between touch points: check the pots along the way too
+function paintAlong(x0, y0, x1, y1) {
+  const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 6));
+  for (let i = 1; i <= steps; i++) paintAdd(nearPot(x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps));
+}
 const mapLocked = () => canWrite && (activeTab === "plants" || ampSel.length > 0);
 function paintAdd(id) {
   if (!id || !paint || paint.has(id)) return;
@@ -1078,7 +1098,10 @@ svg.addEventListener("pointerdown", e => {
   if (id) { e.preventDefault(); startPaint(id); }
 });
 svg.addEventListener("pointermove", e => {
-  if (e.pointerType === "mouse" && paint) paintAdd(potAt(e.clientX, e.clientY));
+  if (e.pointerType !== "mouse" || !paint) return;
+  const last = paint.last || [e.clientX, e.clientY];
+  paintAlong(last[0], last[1], e.clientX, e.clientY);
+  paint.last = [e.clientX, e.clientY];
 });
 window.addEventListener("pointerup", e => { if (e.pointerType === "mouse") endPaint(); });
 
@@ -1088,18 +1111,19 @@ svg.addEventListener("touchstart", e => {
   const t = e.touches[0], id = potAt(t.clientX, t.clientY);
   if (!id && !mapLocked()) return;        // elsewhere on the map: scroll normally
   e.preventDefault();                     // keep the map still: this finger chooses amppelit
-  touchPick = { start: id, painting: false };
+  touchPick = { start: id, painting: false, x: t.clientX, y: t.clientY };
 }, { passive: false });
 svg.addEventListener("touchmove", e => {
   if (!touchPick) return;
   e.preventDefault();
-  const t = e.touches[0], id = potAt(t.clientX, t.clientY);
+  const t = e.touches[0], id = nearPot(t.clientX, t.clientY);
   if (!touchPick.painting) {
     if (!id || id === touchPick.start) return;
     touchPick.painting = true;
     startPaint(touchPick.start || id);
   }
-  paintAdd(id);
+  paintAlong(touchPick.x, touchPick.y, t.clientX, t.clientY);
+  touchPick.x = t.clientX; touchPick.y = t.clientY;
 }, { passive: false });
 svg.addEventListener("touchend", e => {
   if (!touchPick) return;
@@ -1108,7 +1132,7 @@ svg.addEventListener("touchend", e => {
   if (p.painting) { endPaint(); return; }
   // no slide: a plain tap on whatever is under the finger
   const t = e.changedTouches[0];
-  const id = document.elementFromPoint(t.clientX, t.clientY)?.closest(".sec")?.dataset.id;
+  const id = p.start || document.elementFromPoint(t.clientX, t.clientY)?.closest(".sec")?.dataset.id;
   if (id) select(id);
 }, { passive: false });
 svg.addEventListener("touchcancel", () => { touchPick = null; endPaint(); });
