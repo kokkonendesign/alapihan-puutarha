@@ -457,8 +457,8 @@
     </div>
 
     <div class="card" id="detail" aria-live="polite"></div>
-    <div class="amp-bar" id="amp-bar" role="region" aria-label="Valitut amppelit" hidden>
-      <div class="amp-info"><b id="amp-count"></b><span>Napauta muita amppeleita tai liu'uta sormella niiden yli (hiirellä oikea painike pohjassa).</span></div>
+    <div class="amp-bar" id="amp-bar" role="region" aria-label="Valitut kohdat" hidden>
+      <div class="amp-info"><b id="amp-count"></b><span>Napauta muita kohtia tai liu'uta sormella niiden yli (hiirellä oikea painike pohjassa).</span></div>
       <div class="amp-btns">
         <button type="button" class="primary" id="amp-mark">Merkitse kasvi</button>
         <button type="button" id="amp-row">Koko rivi</button>
@@ -629,9 +629,9 @@ function genExtras() {
 
 /* The three tabs above the map: each shows one kind of section. */
 const TABS = [
-  { kind: "all",    label: "Kaikki",      hint: "Napauta pöytää, kukkakourua tai amppelia nähdäksesi, mitä siinä kasvaa." },
-  { kind: "table",  label: "Pöydät",      hint: "Napauta jotakin pöydän kuudesta osasta tai pöydän sivulla olevaa kaistaa nähdäksesi, mitä siinä kasvaa." },
-  { kind: "lane",   label: "Kukkakourut", hint: "Napauta kukkakourua (kapeat viivat pitkillä pöydillä) nähdäksesi, mitä siinä kasvaa." },
+  { kind: "all",    label: "Kaikki",      hint: "Napauta pöydän osaa, kukkakourua tai amppelia valitaksesi sen, ja napauta tai liu'uta sormella muiden yli lisätäksesi niitä (hiirellä oikea painike pohjassa). Paina sitten Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Vierekkäiset saman kasvin kohdat valitaan yhdessä." },
+  { kind: "table",  label: "Pöydät",      hint: "Napauta pöydän osaa tai sivukaistaa ja sitten muita – tai liu'uta sormella niiden yli (hiirellä oikea painike pohjassa). Paina sitten Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Koko rivi valitsee koko pöydän." },
+  { kind: "lane",   label: "Kukkakourut", hint: "Napauta kukkakourua (kapeat viivat pöydillä) ja sitten muita – tai liu'uta sormella niiden yli (hiirellä oikea painike pohjassa). Paina sitten Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla." },
   { kind: "plants", label: "Amppelit",    hint: "Napauta amppelia ja sitten muita samaan ryhmään kuuluvia – tai liu'uta sormella amppeleiden yli (hiirellä oikea painike pohjassa). Sivua voi vierittää kartan ulkopuolelta. Paina sitten Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Vierekkäiset saman kasvin amppelit valitaan yhdessä." },
 ];
 
@@ -1062,32 +1062,48 @@ const tip = document.getElementById("tip");
 const wrap = document.querySelector(".map-wrap");
 
 function setHighlight(id, on) {
-  // an amppeli with a plant lights up together with its whole patch
-  for (const x of byId(id)?.kind === "plants" ? patchOf(id) : [id]) nodes[x]?.g.classList.toggle("hl", on);
+  // a spot with a plant lights up together with its whole patch
+  for (const x of patchOf(id)) nodes[x]?.g.classList.toggle("hl", on);
 }
 
-/* ---------------- amppelit: one plant for several pots ----------------
-   A patch = neighbouring amppelit in one row with the same plant. Tapping an
-   amppeli chooses it (its whole patch if it has a plant); more taps add or
-   remove pots; "Merkitse kasvi" saves the same plant into all of them. */
+/* ---------------- choosing several spots: one plant for all ----------------
+   Works for amppelit, table sections and kukkakourut alike. A "line" is one
+   amppeli row, one table's sections, one table side or one table's
+   kukkakourut; a patch = neighbouring spots in one line with the same plant.
+   Tapping a spot chooses it (its whole patch if it has a plant); more taps add
+   or remove spots; "Merkitse kasvi" saves the same plant into all of them. */
 let ampSel = [];
 const ampBar = document.getElementById("amp-bar");
-const rowPots = row => sections.filter(x => x.row === row);
+function lineOf(s) {
+  if (s.kind === "plants") return "plants:" + s.row;
+  if (s.kind === "table") { const [t, part] = s.id.split("-"); return "table:" + t + ":" + part.replace(/\d+$/, ""); }
+  return "lane:" + s.group;
+}
+const linePots = key => sections.filter(x => lineOf(x) === key);
 function patchOf(id) {
   const s = byId(id);
-  if (!s || s.kind !== "plants" || !s.species) return [id];
-  const pots = rowPots(s.row), i = pots.indexOf(s);
+  if (!s || !s.species) return [id];
+  const pots = linePots(lineOf(s)), i = pots.indexOf(s);
   const same = x => x && x.species === s.species && x.note === s.note;
   let a = i, b = i;
   while (same(pots[a - 1])) a--;
   while (same(pots[b + 1])) b++;
   return pots.slice(a, b + 1).map(x => x.id);
 }
+// "3 amppelia, 2 pöydän osaa"
+function countText(ids) {
+  const words = { plants: ["amppeli", "amppelia"], table: ["pöydän osa", "pöydän osaa"], lane: ["kukkakouru", "kukkakourua"] };
+  const by = {};
+  ids.forEach(id => { const k = byId(id).kind; by[k] = (by[k] || 0) + 1; });
+  return ["plants", "table", "lane"].filter(k => by[k]).map(k => `${by[k]} ${words[k][by[k] === 1 ? 0 : 1]}`).join(", ");
+}
 function describePots(ids) {
   if (ids.length === 1) return byId(ids[0]).name;
-  const rows = [...new Set(ids.map(id => byId(id).row))];
-  const where = rows.length === 1 ? byId(ids[0]).group.replace(/^Amppelit,\s*/, "") : rows.length + " riviä";
-  return `${ids.length} amppelia, ${where}`;
+  const lines = [...new Set(ids.map(id => lineOf(byId(id))))];
+  if (lines.length > 1) return countText(ids);
+  const s = byId(ids[0]);
+  const where = s.kind === "plants" ? s.group.replace(/^Amppelit,\s*/, "") : s.kind === "table" ? "pöytä " + s.id.split("-")[0] : s.group.replace(/^Kukkakourut\s*/, "");
+  return `${countText(ids)}, ${where}`;
 }
 function setAmpSel(ids) {
   ampSel = sections.filter(x => ids.includes(x.id)).map(x => x.id);   // keep map order
@@ -1098,7 +1114,7 @@ function setAmpSel(ids) {
   if (ampSel.length) {
     const kinds = [...new Set(ampSel.map(id => byId(id).species).filter(Boolean))];
     document.getElementById("amp-count").textContent =
-      (ampSel.length === 1 ? "1 amppeli valittu" : `${ampSel.length} amppelia valittu`) + (kinds.length === 1 ? ` · ${kinds[0]}` : "");
+      `${countText(ampSel)} valittu` + (kinds.length === 1 ? ` · ${kinds[0]}` : "");
   }
   renderDetail();
 }
@@ -1112,6 +1128,18 @@ function tapAmp(id) {
    else on the map scrolls the page as usual. */
 let paint = null, skipClick = false, touchPick = null;
 const potAt = (x, y) => document.elementFromPoint(x, y)?.closest(".sec.plants")?.dataset.id || nearPot(x, y);
+// the spot under a finger: an amppeli if one is close, otherwise the table section or kukkakouru
+const spotAt = (x, y) => nearPot(x, y, 20) || document.elementFromPoint(x, y)?.closest(".sec")?.dataset.id || null;
+// during a slide only spots of the same kind count (sliding along amppelit
+// doesn't pick the tables under them), looking under the amppelit if needed
+function spotOfKind(x, y, kind) {
+  if (kind === "plants") return potAt(x, y);
+  for (const el of document.elementsFromPoint(x, y)) {
+    const g = el.closest?.(".sec");
+    if (g && byId(g.dataset.id)?.kind === kind) return g.dataset.id;
+  }
+  return null;
+}
 /* The amppeli nearest to a screen point, if the finger is close enough to it –
    so a finger doesn't have to land exactly on the small circle. */
 const NEAR = 26;   // map units around a pot that still count (pots are ~48 apart in a row)
@@ -1130,7 +1158,7 @@ function nearPot(x, y, near = NEAR) {
 // a quick slide jumps between touch points: check the pots along the way too
 function paintAlong(x0, y0, x1, y1) {
   const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 6));
-  for (let i = 1; i <= steps; i++) paintAdd(nearPot(x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps));
+  for (let i = 1; i <= steps; i++) paintAdd(spotOfKind(x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps, paint.kind));
 }
 function paintAdd(id) {
   if (!id || !paint || paint.has(id)) return;
@@ -1143,8 +1171,10 @@ function paintAdd(id) {
 const mapLocked = () => canWrite;
 function syncMapLock() { svg.classList.toggle("locked", mapLocked()); }
 function startPaint(id) {
-  if (activeTab !== "all" && activeTab !== "plants" && !search.value.trim()) setTab("plants", false);
+  const kind = byId(id).kind;
+  if (activeTab !== "all" && activeTab !== kind && !search.value.trim()) setTab(kind, false);
   paint = new Set();
+  paint.kind = kind;
   svg.classList.add("painting");
   tip.classList.remove("show");
   paintAdd(id);
@@ -1160,7 +1190,7 @@ function endPaint() {
 // mouse: right button
 svg.addEventListener("pointerdown", e => {
   if (!canWrite || e.pointerType !== "mouse" || e.button !== 2) return;
-  const id = potAt(e.clientX, e.clientY);
+  const id = spotAt(e.clientX, e.clientY);
   if (id) { e.preventDefault(); startPaint(id); }
 });
 svg.addEventListener("pointermove", e => {
@@ -1175,7 +1205,7 @@ window.addEventListener("pointerup", e => { if (e.pointerType === "mouse") endPa
 svg.addEventListener("touchstart", e => {
   if (!canWrite || e.touches.length > 1) { touchPick = null; endPaint(); return; }   // two fingers: zoom as usual
   // the finger has to start on (or right next to) an amppeli; anywhere else scrolls
-  const t = e.touches[0], id = nearPot(t.clientX, t.clientY, mapLocked() ? NEAR : 20);
+  const t = e.touches[0], id = spotAt(t.clientX, t.clientY);
   if (!id && !mapLocked()) return;        // map not frozen and no amppeli here: scroll normally
   e.preventDefault();                     // keep the map still: this finger chooses amppelit
   touchPick = { start: id, painting: false, x: t.clientX, y: t.clientY };
@@ -1183,7 +1213,8 @@ svg.addEventListener("touchstart", e => {
 svg.addEventListener("touchmove", e => {
   if (!touchPick) return;
   e.preventDefault();
-  const t = e.touches[0], id = nearPot(t.clientX, t.clientY);
+  const t = e.touches[0];
+  const id = touchPick.start ? spotOfKind(t.clientX, t.clientY, byId(touchPick.start).kind) : spotAt(t.clientX, t.clientY);
   if (!touchPick.painting) {
     if (!id || id === touchPick.start) return;
     touchPick.painting = true;
@@ -1204,13 +1235,13 @@ svg.addEventListener("touchend", e => {
 }, { passive: false });
 svg.addEventListener("touchcancel", () => { touchPick = null; endPaint(); });
 // no right-click or long-press menu on the amppelit
-svg.addEventListener("contextmenu", e => { if (e.target.closest(".sec.plants")) e.preventDefault(); });
+svg.addEventListener("contextmenu", e => { if (e.target.closest(".sec")) e.preventDefault(); });
 
 document.getElementById("amp-mark").onclick = () => ampSel.length && openPopup(ampSel[0], ampSel);
 document.getElementById("amp-cancel").onclick = () => setAmpSel([]);
 document.getElementById("amp-row").onclick = () => {
-  const rows = [...new Set(ampSel.map(id => byId(id).row))];
-  setAmpSel([...ampSel, ...rows.flatMap(r => rowPots(r).map(x => x.id))]);
+  const lines = [...new Set(ampSel.map(id => lineOf(byId(id))))];
+  setAmpSel([...ampSel, ...lines.flatMap(l => linePots(l).map(x => x.id))]);
 };
 
 function bindSection(grp, id) {
@@ -1226,7 +1257,7 @@ function bindSection(grp, id) {
 function showTip(id, e) {
   const s = byId(id);
   tip.innerHTML = "";
-  const patch = s.kind === "plants" ? patchOf(id) : [id];
+  const patch = patchOf(id);
   const b = document.createElement("b");
   b.textContent = patch.length > 1 ? `${patch[0]}–${patch[patch.length - 1].split("-").pop()} · ${describePots(patch)}` : `${s.id} · ${s.name}`;
   tip.append(b, document.createTextNode(s.species || "Kasvia ei ole vielä merkitty"));
@@ -1240,8 +1271,9 @@ function moveTip(e) {
 }
 
 function select(id) {
-  if (byId(id).kind === "plants" && canWrite) {
-    if (activeTab !== "all" && activeTab !== "plants" && !search.value.trim()) setTab("plants", false);
+  if (canWrite) {
+    const kind = byId(id).kind;
+    if (activeTab !== "all" && activeTab !== kind && !search.value.trim()) setTab(kind, false);
     tapAmp(id);
     return;
   }
@@ -1282,7 +1314,7 @@ function openPopup(id, ids) {
   document.getElementById("pop-view-note").textContent = note;
   popSpecies.value = species;
   popNote.value = note;
-  popSpecies.placeholder = popIds.length > 1 ? `Sama kasvi kaikkiin ${popIds.length} amppeliin` : "Kirjoita kasvi, esim. basilika";
+  popSpecies.placeholder = popIds.length > 1 ? `Sama kasvi kaikkiin (${popIds.length})` : "Kirjoita kasvi, esim. basilika";
   document.getElementById("pop-clear").hidden = !group.some(x => x.species || x.note);
   showPopError("");
   setPopBusy(false);
@@ -1306,7 +1338,7 @@ function showPopError(text) { popErr.textContent = text; popErr.hidden = !text; 
 function setPopBusy(on) {
   popBusy = on;
   pop.querySelectorAll(".pop-edit button").forEach(b => b.disabled = on);
-  const n = popIds && popIds.length > 1 ? ` ${popIds.length} amppelia` : "";
+  const n = popIds && popIds.length > 1 ? ` (${popIds.length})` : "";
   popForm.querySelector("button[type=submit]").textContent = on ? `Tallennetaan${n}…` : "Tallenna";
 }
 
@@ -1350,7 +1382,7 @@ async function saveFromPopup(species, note) {
       showPopError("PIN-koodi on vaihtunut. Kirjoita uusi koodi ja paina Tallenna uudelleen.");
       askPin("bad");
     } else {
-      showPopError(okOnes.length ? `${left.length} amppelia jäi tallentamatta. Paina Tallenna uudelleen.` : "Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
+      showPopError(okOnes.length ? `${left.length} kohtaa jäi tallentamatta. Paina Tallenna uudelleen.` : "Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
     }
     return;
   }
