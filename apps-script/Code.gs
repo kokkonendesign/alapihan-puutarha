@@ -44,8 +44,10 @@ function json_(obj) {
 
 /** Reading the plants needs the PIN too, so the map's public code can't be used
  *  to read the sheet. GET only answers that a PIN is needed. */
+const VERSION = "2026-11-20 dates";   // shows which code is live (open the /exec address)
+
 function doGet() {
-  return json_({ ok: false, error: "pin required" });
+  return json_({ ok: false, error: "pin required", version: VERSION });
 }
 
 /** { sections: { "T4-S3": { species, note, at }, ... } } – all labels, for the map.
