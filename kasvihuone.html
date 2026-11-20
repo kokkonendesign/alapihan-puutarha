@@ -394,7 +394,7 @@
     border-radius: 999px; padding: 3px 6px; text-shadow: 0 1px 1px rgba(0,0,0,.25); }
   ul.counts .c-name { font-weight: 600; }
   ul.counts .c-where { font-size: .8rem; color: var(--muted); }
-  ul.counts .c-date { float: right; font-weight: 400; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  ul.counts .c-date { font-weight: 400; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
   .group-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
   .group-title:first-of-type { margin-top: 0; }
 
@@ -1462,7 +1462,7 @@ function renderCounts() {
     if (e.at) {
       const d = new Date(e.at), p2 = n => String(n).padStart(2, "0");
       const date = document.createElement("span"); date.className = "c-date";
-      date.textContent = `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)}`;
+      date.textContent = `(${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)})`;
       date.title = "Viimeksi päivitetty";
       name.append(" ", date);
     }
