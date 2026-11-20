@@ -301,6 +301,11 @@
     border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; box-shadow: 0 10px 34px rgba(0,0,0,.2);
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .amp-bar[hidden] { display: none; }
+  /* computer / iPad sideways: a card in the side panel, right under Valittu */
+  @media (min-width: 900px) {
+    .amp-bar { position: static; transform: none; width: auto; box-shadow: none; border-radius: 14px; margin-top: 12px;
+      border-color: var(--pink); background: var(--pink-soft); }
+  }
   .amp-bar .amp-info { flex: 1 1 180px; font-size: .9rem; line-height: 1.3; }
   .amp-bar .amp-info b { display: block; font-weight: 600; }
   .amp-bar .amp-info span { color: var(--muted); font-size: .8rem; }
@@ -331,10 +336,11 @@
   @media (min-width: 700px) {
     .pop-backdrop { justify-content: flex-end; background: rgba(20, 26, 22, .12); }
     .pop { width: min(380px, 42vw); animation-name: pop-side; }
-    .amp-bar { left: auto; right: max(16px, env(safe-area-inset-right, 0px)); transform: none; width: min(380px, 42vw); }
+
   }
   /* iPad upright: the map is full width, so it makes room for the pop-up */
   @media (min-width: 700px) and (max-width: 899px) {
+    .amp-bar { left: auto; right: max(16px, env(safe-area-inset-right, 0px)); transform: none; width: min(380px, 42vw); }
     body.pop-open main { width: calc(100% - min(380px, 42vw) - 24px); min-width: 0; margin-left: 0; margin-right: auto; }
   }
   body.pop-open .edge-arrow { display: none !important; }
@@ -455,21 +461,20 @@
     </div>
 
     <div class="card" id="detail" aria-live="polite"></div>
+    <div class="amp-bar" id="amp-bar" role="region" aria-label="Valitut amppelit" hidden>
+      <div class="amp-info"><b id="amp-count"></b><span>Napauta muita amppeleita tai liu'uta sormella niiden yli (hiirellä oikea painike pohjassa).</span></div>
+      <div class="amp-btns">
+        <button type="button" class="primary" id="amp-mark">Merkitse kasvi</button>
+        <button type="button" id="amp-row">Koko rivi</button>
+        <button type="button" id="amp-cancel">Peruuta</button>
+      </div>
+    </div>
   </aside>
 </main>
 
 <footer class="site-footer">
   <b>Alapihan Puutarha</b> Kasvihuonekartta – oikeudet muutoksiin pidätetään.
 </footer>
-
-<div class="amp-bar" id="amp-bar" role="region" aria-label="Valitut amppelit" hidden>
-  <div class="amp-info"><b id="amp-count"></b><span>Napauta muita amppeleita tai liu'uta sormella niiden yli (hiirellä oikea painike pohjassa).</span></div>
-  <div class="amp-btns">
-    <button type="button" class="primary" id="amp-mark">Merkitse kasvi</button>
-    <button type="button" id="amp-row">Koko rivi</button>
-    <button type="button" id="amp-cancel">Peruuta</button>
-  </div>
-</div>
 
 <div class="pop-backdrop" id="pop" hidden>
   <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
@@ -1400,13 +1405,7 @@ function renderDetail() {
   }
   if (ampSel.length > 1) {
     const h3 = document.createElement("h3"); h3.textContent = describePots(ampSel);
-    const p = document.createElement("p"); p.className = "hint";
-    p.textContent = "Napauta amppeleita lisätäksesi tai poistaaksesi niitä. Merkitse kasvi tallentaa saman kasvin kaikkiin.";
-    const btns = document.createElement("div"); btns.className = "btns";
-    const b = document.createElement("button"); b.className = "primary"; b.textContent = "Merkitse kasvi";
-    b.onclick = () => openPopup(ampSel[0], ampSel);
-    btns.appendChild(b);
-    detail.append(h3, p, btns);
+    detail.append(h3);
     return;
   }
   const s = byId(selectedId);
