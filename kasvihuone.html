@@ -117,6 +117,9 @@
     margin: 2px 0 10px; text-align: center; font-size: clamp(1.6rem, 4.8vw, 2.4rem); font-weight: 300;
     color: var(--heading); line-height: 1.15;
   }
+  .map-lock { display: flex; margin: -4px auto 10px; align-items: center; gap: 6px; font: inherit; font-size: .82rem; font-weight: 600;
+    padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+  .map-lock[aria-pressed="true"] { background: var(--pink); border-color: var(--pink-strong); color: var(--pink-ink); }
   svg.map { display: block; width: 100%; height: auto; max-height: calc((100vh - 150px) * var(--map-scale, 1)); margin: 0 auto; touch-action: manipulation; }
   /* phones: the whole house, its name and the legend fit on the screen you can actually see
      (svh leaves out the browser's address bar and toolbar) */
@@ -139,7 +142,8 @@
   .amp-row { pointer-events: none; }
   svg.map { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   svg.map.painting { cursor: crosshair; }
-  svg.map .sec.plants, svg.map .sec.plants * { touch-action: none !important; }
+  svg.map .sec.plants, svg.map .sec.plants *, svg.map.locked, svg.map.locked * { touch-action: none !important; }
+  svg.map.locked { overscroll-behavior: contain; }
   .amp-outline { fill: none; stroke: var(--plant-stroke); stroke-width: 1.5; stroke-dasharray: 3 5; opacity: .45; }
   .sec.plants .hit { fill: transparent; stroke: transparent; stroke-width: 2; rx: 14; pointer-events: none; }
   .sec.plants .tap { fill: transparent; }
@@ -407,6 +411,7 @@
 <main>
   <section class="map-wrap" aria-label="Kasvihuoneen pohjapiirros">
     <h2 class="map-title" id="map-title">Kasvihuone</h2>
+    <button type="button" class="map-lock" id="map-lock" aria-pressed="false"></button>
     <svg class="map" id="map" data-tab="all" viewBox="-24 -24 832 1210" role="group" aria-label="Kasvihuoneen pohjapiirros, sisäänkäynti alhaalla"></svg>
     <div class="tip" id="tip" role="presentation"></div>
     <div class="legend">
@@ -1059,6 +1064,7 @@ function setAmpSel(ids) {
   selectedId = ampSel[0] || null;
   Object.entries(nodes).forEach(([k, n]) => n.g.classList.toggle("selected", ampSel.includes(k)));
   ampBar.hidden = !ampSel.length;
+  syncMapLock();
   if (ampSel.length) {
     const kinds = [...new Set(ampSel.map(id => byId(id).species).filter(Boolean))];
     document.getElementById("amp-count").textContent =
@@ -1101,6 +1107,28 @@ function paintAdd(id) {
   paint.add(id);
   if (!ampSel.includes(id)) setAmpSel([...ampSel, id]);
 }
+/* Freezing the map: while it is frozen a finger never scrolls, zooms or swipes
+   the page on the map, and sliding anywhere on it chooses amppelit. It freezes
+   by itself while amppelit are chosen; the button freezes / unfreezes it. */
+const LOCK_KEY = "alapiha-map-lock";
+let lockOn = true;
+try { lockOn = localStorage.getItem(LOCK_KEY) !== "0"; } catch (e) { /* ignore */ }
+const lockBtn = document.getElementById("map-lock");
+const mapLocked = () => canWrite && (lockOn || ampSel.length > 0);
+function syncMapLock() {
+  const on = mapLocked();
+  svg.classList.toggle("locked", on);
+  lockBtn.setAttribute("aria-pressed", String(on));
+  lockBtn.textContent = on ? "🔒 Kartta lukittu · napauta avataksesi" : "🔓 Kartta liikkuu · napauta lukitaksesi";
+  lockBtn.title = on ? "Kartta pysyy paikallaan, ja sormella liu'uttaminen valitsee amppeleita. Sivua voi vierittää kartan ulkopuolelta." : "Sormi vierittää sivua myös kartan päällä. Amppelin päältä aloitettu liu'utus valitsee silti amppeleita.";
+  lockBtn.hidden = !canWrite;
+}
+lockBtn.onclick = () => {
+  lockOn = !mapLocked();
+  if (!lockOn && ampSel.length) setAmpSel([]);   // unfreezing also drops the chosen pots
+  try { localStorage.setItem(LOCK_KEY, lockOn ? "1" : "0"); } catch (e) { /* ignore */ }
+  syncMapLock();
+};
 function startPaint(id) {
   if (activeTab !== "all" && activeTab !== "plants" && !search.value.trim()) setTab("plants", false);
   paint = new Set();
@@ -1134,8 +1162,8 @@ window.addEventListener("pointerup", e => { if (e.pointerType === "mouse") endPa
 svg.addEventListener("touchstart", e => {
   if (!canWrite || e.touches.length > 1) { touchPick = null; endPaint(); return; }   // two fingers: zoom as usual
   // the finger has to start on (or right next to) an amppeli; anywhere else scrolls
-  const t = e.touches[0], id = nearPot(t.clientX, t.clientY, 20);
-  if (!id) return;
+  const t = e.touches[0], id = nearPot(t.clientX, t.clientY, mapLocked() ? NEAR : 20);
+  if (!id && !mapLocked()) return;        // map not frozen and no amppeli here: scroll normally
   e.preventDefault();                     // keep the map still: this finger chooses amppelit
   touchPick = { start: id, painting: false, x: t.clientX, y: t.clientY };
 }, { passive: false });
@@ -1542,7 +1570,7 @@ function setupHouseNav() {
   let sw = null;
   area.addEventListener("pointerdown", e => {
     // sliding over amppelit chooses them, it doesn't switch houses
-    if (e.target.closest?.(".sec.plants")) { sw = null; return; }
+    if (e.target.closest?.(".sec.plants") || svg.classList.contains("locked")) { sw = null; return; }
     if (e.pointerType !== "mouse" && e.isPrimary) sw = { x: e.clientX, y: e.clientY, t: Date.now() };
   });
   area.addEventListener("pointerup", e => {
@@ -1585,5 +1613,6 @@ setupHouseNav();
 drawSections();
 sections.forEach(refreshSection);
 setTab(activeTab, false);
+syncMapLock();
 connectStore().then(() => { if (mode === "local") { sections.forEach(refreshSection); renderList(); renderDetail(); } });
 </script>
