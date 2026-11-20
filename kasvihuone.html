@@ -846,6 +846,8 @@ async function loadSheet() {
   if (!sections) return false;
   // ignore a read that overlapped a save: it may show the sheet from before the save
   if (busy || pendingSaves || seq !== writeSeq) return;
+  // every plant name in every greenhouse, so a plant gets the same colour everywhere
+  allPlantNames = Object.entries(sections).filter(([id]) => !id.startsWith("L-")).map(([, d]) => String(d.species || ""));
   const entries = Object.entries(sections)
     .filter(([id]) => id.startsWith(HOUSE_PREFIX))
     .map(([id, d]) => ({ id: id.slice(HOUSE_PREFIX.length), exists: true, data: () => d }));
@@ -1475,15 +1477,17 @@ function renderList() {
   applyColors();
 }
 
-/* Plant colours: every plant in this greenhouse gets its own colour, so a new
-   patch stands out. A plant keeps its colour (picked from its name); only if
-   two plants would share one does the later one (alphabetically) move on. */
+/* Plant colours: every plant gets its own colour, so a new patch stands out,
+   and the same plant (same name, any capitals) has the same colour in every
+   greenhouse. The colour comes from the name; only if two plants would share
+   one does the later one (alphabetically) move on to the next free colour. */
 const PLANT_COLORS = ["#d9534f", "#f2c94c", "#5f9b62", "#3fa7a0", "#4f8fd6", "#8e6cc9",
   "#e27aa8", "#8d6e63", "#a3c94f", "#b55fb5", "#2f6f9f", "#7a8c99"];
 let plantColor = new Map();
+let allPlantNames = [];   // plant names from the whole sheet (all greenhouses)
 function nameHash(t) { let h = 0; for (const c of t) h = (h * 31 + c.codePointAt(0)) >>> 0; return h; }
 function applyColors() {
-  const names = [...new Set(sections.map(s => s.species.trim().toLowerCase()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fi"));
+  const names = [...new Set([...allPlantNames, ...sections.map(s => s.species)].map(n => n.trim().toLowerCase()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fi"));
   const used = new Set();
   plantColor = new Map();
   for (const n of names) {
