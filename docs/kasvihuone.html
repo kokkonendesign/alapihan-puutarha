@@ -140,6 +140,8 @@
   .sec.plants .pot { fill: var(--plant); stroke: var(--plant-stroke); stroke-width: 2; transition: fill .15s, stroke .15s; }
   .sec.plants.empty .pot { fill: var(--plant-empty); }
   .amp-row { pointer-events: none; }
+  svg.map { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  svg.map.painting { cursor: crosshair; }
   .amp-outline { fill: none; stroke: var(--plant-stroke); stroke-width: 1.5; stroke-dasharray: 3 5; opacity: .45; }
   .sec.plants .hit { fill: transparent; stroke: transparent; stroke-width: 2; rx: 14; pointer-events: none; }
   .sec.plants .tap { fill: transparent; }
@@ -434,7 +436,7 @@
 </footer>
 
 <div class="amp-bar" id="amp-bar" role="region" aria-label="Valitut amppelit" hidden>
-  <div class="amp-info"><b id="amp-count"></b><span>Napauta muita amppeleita lisätäksesi ne tai poistaaksesi ne valinnasta.</span></div>
+  <div class="amp-info"><b id="amp-count"></b><span>Napauta muita amppeleita tai liu'uta niiden yli (hiiren oikea painike tai sormi pohjassa).</span></div>
   <div class="amp-btns">
     <button type="button" class="primary" id="amp-mark">Merkitse kasvi</button>
     <button type="button" id="amp-row">Koko rivi</button>
@@ -602,7 +604,7 @@ const TABS = [
   { kind: "all",    label: "Kaikki",      hint: "Napauta pöytää, kukkakourua tai amppelia nähdäksesi, mitä siinä kasvaa." },
   { kind: "table",  label: "Pöydät",      hint: "Napauta jotakin pöydän kuudesta osasta tai pöydän sivulla olevaa kaistaa nähdäksesi, mitä siinä kasvaa." },
   { kind: "lane",   label: "Kukkakourut", hint: "Napauta kukkakourua (kapeat viivat pitkillä pöydillä) nähdäksesi, mitä siinä kasvaa." },
-  { kind: "plants", label: "Amppelit",    hint: "Napauta amppelia ja sitten muita samaan ryhmään kuuluvia (tai Koko rivi), ja paina Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Vierekkäiset saman kasvin amppelit valitaan yhdessä." },
+  { kind: "plants", label: "Amppelit",    hint: "Napauta amppelia ja sitten muita samaan ryhmään kuuluvia – tai pidä hiiren oikeaa painiketta tai sormea hetki amppelin päällä ja liu'uta muiden yli. Paina sitten Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Vierekkäiset saman kasvin amppelit valitaan yhdessä." },
 ];
 
 /* Geometry, traced from the hand sketch (units are SVG viewBox units). */
@@ -1038,6 +1040,60 @@ function tapAmp(id) {
   if (!ampSel.length) return setAmpSel(patchOf(id));
   setAmpSel(ampSel.includes(id) ? ampSel.filter(x => x !== id) : [...ampSel, id]);
 }
+/* Slide to choose: hold the right mouse button, or press and hold a finger on an
+   amppeli for a moment, then slide over the others – every pot passed gets chosen. */
+let paint = null, hold = null, skipClick = false;
+const potAt = (x, y) => document.elementFromPoint(x, y)?.closest(".sec.plants")?.dataset.id || null;
+function paintAdd(id) {
+  if (!id || !paint || paint.has(id)) return;
+  paint.add(id);
+  if (!ampSel.includes(id)) setAmpSel([...ampSel, id]);
+}
+function startPaint(id) {
+  if (activeTab !== "all" && activeTab !== "plants" && !search.value.trim()) setTab("plants", false);
+  paint = new Set();
+  svg.classList.add("painting");
+  tip.classList.remove("show");
+  paintAdd(id);
+}
+function endPaint() {
+  if (hold) { clearTimeout(hold.timer); hold = null; }
+  if (!paint) return;
+  paint = null;
+  svg.classList.remove("painting");
+  skipClick = true;                       // the press that ended the slide is not a tap
+  setTimeout(() => { skipClick = false; }, 400);
+}
+svg.addEventListener("pointerdown", e => {
+  if (!canWrite) return;
+  const id = potAt(e.clientX, e.clientY);
+  if (!id) return;
+  if (e.pointerType === "mouse") {
+    if (e.button === 2) { e.preventDefault(); startPaint(id); }
+    return;
+  }
+  // finger or pen: hold still for a moment, then slide
+  if (hold) clearTimeout(hold.timer);
+  hold = { x: e.clientX, y: e.clientY, timer: setTimeout(() => { hold = null; startPaint(id); navigator.vibrate?.(15); }, 350) };
+});
+svg.addEventListener("pointermove", e => {
+  if (e.pointerType === "mouse" && paint) paintAdd(potAt(e.clientX, e.clientY));
+});
+// touch: once the slide has started, stop the page from scrolling and follow the finger
+svg.addEventListener("touchmove", e => {
+  const t = e.touches[0];
+  if (hold && Math.hypot(t.clientX - hold.x, t.clientY - hold.y) > 10) { clearTimeout(hold.timer); hold = null; }
+  if (!paint) return;
+  e.preventDefault();
+  paintAdd(potAt(t.clientX, t.clientY));
+}, { passive: false });
+window.addEventListener("pointerup", endPaint);
+window.addEventListener("pointercancel", () => { if (!paint) endPaint(); });
+svg.addEventListener("touchend", endPaint);
+svg.addEventListener("touchcancel", endPaint);
+// no right-click or long-press menu on the amppelit
+svg.addEventListener("contextmenu", e => { if (e.target.closest(".sec.plants")) e.preventDefault(); });
+
 document.getElementById("amp-mark").onclick = () => ampSel.length && openPopup(ampSel[0], ampSel);
 document.getElementById("amp-cancel").onclick = () => setAmpSel([]);
 document.getElementById("amp-row").onclick = () => {
@@ -1049,7 +1105,7 @@ function bindSection(grp, id) {
   grp.addEventListener("pointerenter", e => { setHighlight(id, true); if (e.pointerType === "mouse") showTip(id, e); });
   grp.addEventListener("pointermove", e => { if (e.pointerType === "mouse") moveTip(e); });
   grp.addEventListener("pointerleave", () => { setHighlight(id, false); tip.classList.remove("show"); });
-  grp.addEventListener("click", () => select(id));
+  grp.addEventListener("click", () => { if (!skipClick) select(id); });
   grp.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(id); } });
   grp.addEventListener("focus", () => setHighlight(id, true));
   grp.addEventListener("blur", () => setHighlight(id, false));
