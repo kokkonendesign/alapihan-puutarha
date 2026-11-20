@@ -136,6 +136,8 @@
   .sec.table.empty .shape { fill: var(--table-empty); stroke-dasharray: 4 4; }
   .sec.plants .pot { fill: var(--plant); stroke: var(--plant-stroke); stroke-width: 2; transition: fill .15s, stroke .15s; }
   .sec.plants.empty .pot { fill: var(--plant-empty); }
+  .amp-row { pointer-events: none; }
+  .amp-outline { fill: none; stroke: var(--plant-stroke); stroke-width: 1.5; stroke-dasharray: 3 5; opacity: .45; }
   .sec.plants .hit { fill: transparent; stroke: transparent; stroke-width: 2; rx: 14; pointer-events: none; }
   .sec.plants .tap { fill: transparent; }
   /* pöytä sections and side strips */
@@ -566,10 +568,10 @@ function genExtras() {
 
 /* The three tabs above the map: each shows one kind of section. */
 const TABS = [
-  { kind: "all",    label: "Kaikki",      hint: "Napauta pöytää, kukkakourua tai amppeliriviä nähdäksesi, mitä siinä kasvaa." },
+  { kind: "all",    label: "Kaikki",      hint: "Napauta pöytää, kukkakourua tai amppelia nähdäksesi, mitä siinä kasvaa." },
   { kind: "table",  label: "Pöydät",      hint: "Napauta jotakin pöydän kuudesta osasta tai pöydän sivulla olevaa kaistaa nähdäksesi, mitä siinä kasvaa." },
   { kind: "lane",   label: "Kukkakourut", hint: "Napauta kukkakourua (kapeat viivat pitkillä pöydillä) nähdäksesi, mitä siinä kasvaa." },
-  { kind: "plants", label: "Amppelit",    hint: "Napauta amppeliriviä nähdäksesi, mitä siinä kasvaa." },
+  { kind: "plants", label: "Amppelit",    hint: "Napauta yksittäistä amppelia nähdäksesi, mitä siinä kasvaa. Jokaiseen amppeliin voi merkitä oman kasvin." },
 ];
 
 /* Geometry, traced from the hand sketch (units are SVG viewBox units). */
@@ -644,6 +646,19 @@ if (LAYOUT.floors) for (const [id, cx] of [["KR-L", EDGE_LANE_X], ["KR-R", W - E
     hit: [cx - EDGE_LANE_W / 2 - 6, LAYOUT.TOP - 4, EDGE_LANE_W + 12, LAYOUT.LEN + 8],
   };
 }
+
+/* Every amppeli is its own spot (H3-5 = row H3, pot 5), so each pot can hold a
+   different plant. The row (H3) keeps its number badge on the map. */
+const AMPPELI_ROWS = DEFAULT_SECTIONS.filter(s => s.kind === "plants");
+DEFAULT_SECTIONS.splice(DEFAULT_SECTIONS.findIndex(s => s.kind === "plants"), AMPPELI_ROWS.length,
+  ...AMPPELI_ROWS.flatMap(row => {
+    const g = GEOM[row.id], n = g.pts.length, where = row.name.replace(/^Amppelit,\s*/, "");
+    return g.pts.map((pt, i) => {
+      GEOM[`${row.id}-${i + 1}`] = { pt, r: g.r };
+      return { id: `${row.id}-${i + 1}`, kind: "plants", row: row.id, group: row.name,
+        name: `Amppeli ${i + 1}/${n}, ${where}`, species: "", note: "" };
+    });
+  }));
 
 /* ---------------- state + storage ----------------
    Published on claude.ai: labels live in the artifact's shared database
@@ -888,22 +903,12 @@ function drawSection(s) {
     const [x, y, w, h] = g.rect;
     el("rect", { class: "shape", x, y, width: w, height: h, rx: Math.min(w, h) / 2 }, grp);
   } else {
-    const xs = g.pts.map(p => p[0]), ys = g.pts.map(p => p[1]);
-    const pad = g.r + 7;
-    const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
-    el("rect", { class: "hit", x: x0, y: y0, width: Math.max(...xs) - x0 + pad, height: Math.max(...ys) - y0 + pad, rx: 14 }, grp);
-    for (const [cx, cy] of g.pts) {
-      el("circle", { class: "tap", cx, cy, r: g.r + 3 }, grp);
-      el("circle", { class: "pot", cx, cy, r: g.r }, grp);
-    }
-    if (g.label) label = el("text", { class: "sec-label", x: g.label[0], y: g.label[1] }, grp);
+    const [cx, cy] = g.pt;
+    el("circle", { class: "tap", cx, cy, r: g.r + 4 }, grp);
+    el("circle", { class: "pot", cx, cy, r: g.r }, grp);
   }
 
-  if (g.badge) {
-    const b = drawBadge(grp, g.badge[0], g.badge[1], s.id);
-    // bottom row: badge sits left of its label
-    if (s.id === "H5") { b.setAttribute("transform", "translate(-150 0)"); label.setAttribute("x", g.label[0] + 15); }
-  }
+  if (g.badge) drawBadge(grp, g.badge[0], g.badge[1], s.id);
 
   nodes[s.id] = { g: grp, label };
   bindSection(grp, s.id);
@@ -932,6 +937,14 @@ function drawSections() {
     el("text", { class: "lane-num", x: nx, y: ny }, svg).textContent = s.id.split("-")[1];
   }
 
+  // each amppeli row: a faint outline and its number (not clickable), then the pots
+  for (const row of AMPPELI_ROWS) {
+    const g = GEOM[row.id], xs = g.pts.map(p => p[0]), ys = g.pts.map(p => p[1]), pad = g.r + 7;
+    const frame = el("g", { class: "amp-row" }, svg);
+    const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
+    el("rect", { class: "amp-outline", x: x0, y: y0, width: Math.max(...xs) + pad - x0, height: Math.max(...ys) + pad - y0, rx: 14 }, frame);
+    drawBadge(frame, g.badge[0], g.badge[1], row.id);
+  }
   sections.filter(s => s.kind === "plants").forEach(drawSection);
 }
 
@@ -1002,7 +1015,7 @@ function openPopup(id) {
   tip.classList.remove("show");
   document.getElementById("pop-code").textContent = s.id;
   document.getElementById("pop-title").textContent = s.name;
-  const kindName = s.floor ? "lattia" : s.part === "side" ? "pöydän sivukaista" : { table: "pöydän osa", lane: "kukkakouru", plants: "amppelit" }[s.kind];
+  const kindName = s.floor ? "lattia" : s.part === "side" ? "pöydän sivukaista" : { table: "pöydän osa", lane: "kukkakouru", plants: "amppeli" }[s.kind];
   document.getElementById("pop-kind").textContent = kindName;
 
   pop.classList.toggle("readonly", !canWrite);
