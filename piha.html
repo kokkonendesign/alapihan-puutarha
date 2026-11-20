@@ -798,7 +798,7 @@ async function fetchSections() {
   if (!out.ok && out.error === "bad id") out = await (await fetch(SHEETS_URL + "?t=" + Date.now())).json(); // older script
   if (!out.ok && out.error === "bad pin") { setPin(""); askPin("bad"); return null; }
   if (!out.ok) throw new Error(out.error || "read failed");
-  return sections;
+  return out.sections || {};
 }
 async function loadSheet() {
   const seq = writeSeq, busy = pendingSaves > 0;

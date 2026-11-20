@@ -120,9 +120,6 @@
     margin: 2px 0 10px; text-align: center; font-size: clamp(1.6rem, 4.8vw, 2.4rem); font-weight: 300;
     color: var(--heading); line-height: 1.15;
   }
-  .map-lock { display: flex; margin: -4px auto 10px; align-items: center; gap: 6px; font: inherit; font-size: .82rem; font-weight: 600;
-    padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
-  .map-lock[aria-pressed="true"] { background: var(--pink); border-color: var(--pink-strong); color: var(--pink-ink); }
   svg.map { display: block; width: 100%; height: auto; max-height: calc((100vh - 150px) * var(--map-scale, 1)); margin: 0 auto; touch-action: manipulation; }
   /* phones: the whole house, its name and the legend fit on the screen you can actually see
      (svh leaves out the browser's address bar and toolbar) */
@@ -369,6 +366,14 @@
   ul.list .s { display: block; font-weight: 600; }
   ul.list .s.none { font-weight: 400; font-style: italic; color: var(--muted); }
   ul.list li.hidden { display: none; }
+  #detail h2.counts-title { margin-top: 20px; }
+  ul.counts { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+  ul.counts button { width: 100%; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; text-align: left;
+    font: inherit; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; cursor: pointer; }
+  ul.counts button:hover { border-color: var(--pink); }
+  ul.counts .c-num { grid-row: span 2; min-width: 2.2em; text-align: center; font-weight: 700; font-size: 1.05rem; color: var(--pink-strong); }
+  ul.counts .c-name { font-weight: 600; }
+  ul.counts .c-where { font-size: .8rem; color: var(--muted); }
   .group-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
   .group-title:first-of-type { margin-top: 0; }
 
@@ -416,7 +421,6 @@
 <main>
   <section class="map-wrap" aria-label="Kasvihuoneen pohjapiirros">
     <h2 class="map-title" id="map-title">Kasvihuone</h2>
-    <button type="button" class="map-lock" id="map-lock" aria-pressed="false"></button>
     <svg class="map" id="map" data-tab="all" viewBox="-24 -24 832 1210" role="group" aria-label="Kasvihuoneen pohjapiirros, sisäänkäynti alhaalla"></svg>
     <div class="tip" id="tip" role="presentation"></div>
     <div class="legend">
@@ -610,7 +614,7 @@ const TABS = [
   { kind: "all",    label: "Kaikki",      hint: "Napauta pöytää, kukkakourua tai amppelia nähdäksesi, mitä siinä kasvaa." },
   { kind: "table",  label: "Pöydät",      hint: "Napauta jotakin pöydän kuudesta osasta tai pöydän sivulla olevaa kaistaa nähdäksesi, mitä siinä kasvaa." },
   { kind: "lane",   label: "Kukkakourut", hint: "Napauta kukkakourua (kapeat viivat pitkillä pöydillä) nähdäksesi, mitä siinä kasvaa." },
-  { kind: "plants", label: "Amppelit",    hint: "Napauta amppelia ja sitten muita samaan ryhmään kuuluvia – tai liu'uta sormella amppeleiden yli (hiirellä oikea painike pohjassa). Aloita liu'utus amppelin päältä – muualta karttaa sivu vierii normaalisti. Paina sitten Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Vierekkäiset saman kasvin amppelit valitaan yhdessä." },
+  { kind: "plants", label: "Amppelit",    hint: "Napauta amppelia ja sitten muita samaan ryhmään kuuluvia – tai liu'uta sormella amppeleiden yli (hiirellä oikea painike pohjassa). Sivua voi vierittää kartan ulkopuolelta. Paina sitten Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Vierekkäiset saman kasvin amppelit valitaan yhdessä." },
 ];
 
 /* Geometry, traced from the hand sketch (units are SVG viewBox units). */
@@ -834,7 +838,7 @@ async function fetchSections() {
   if (!out.ok && out.error === "bad id") out = await (await fetch(SHEETS_URL + "?t=" + Date.now())).json(); // older script
   if (!out.ok && out.error === "bad pin") { setPin(""); askPin("bad"); return null; }
   if (!out.ok) throw new Error(out.error || "read failed");
-  return sections;
+  return out.sections || {};
 }
 async function loadSheet() {
   const seq = writeSeq, busy = pendingSaves > 0;
@@ -1112,28 +1116,11 @@ function paintAdd(id) {
   paint.add(id);
   if (!ampSel.includes(id)) setAmpSel([...ampSel, id]);
 }
-/* Freezing the map: while it is frozen a finger never scrolls, zooms or swipes
-   the page on the map, and sliding anywhere on it chooses amppelit. It freezes
-   by itself while amppelit are chosen; the button freezes / unfreezes it. */
-const LOCK_KEY = "alapiha-map-lock";
-let lockOn = true;
-try { lockOn = localStorage.getItem(LOCK_KEY) !== "0"; } catch (e) { /* ignore */ }
-const lockBtn = document.getElementById("map-lock");
-const mapLocked = () => canWrite && (lockOn || ampSel.length > 0);
-function syncMapLock() {
-  const on = mapLocked();
-  svg.classList.toggle("locked", on);
-  lockBtn.setAttribute("aria-pressed", String(on));
-  lockBtn.textContent = on ? "🔒 Kartta lukittu · napauta avataksesi" : "🔓 Kartta liikkuu · napauta lukitaksesi";
-  lockBtn.title = on ? "Kartta pysyy paikallaan, ja sormella liu'uttaminen valitsee amppeleita. Sivua voi vierittää kartan ulkopuolelta." : "Sormi vierittää sivua myös kartan päällä. Amppelin päältä aloitettu liu'utus valitsee silti amppeleita.";
-  lockBtn.hidden = !canWrite;
-}
-lockBtn.onclick = () => {
-  lockOn = !mapLocked();
-  if (!lockOn && ampSel.length) setAmpSel([]);   // unfreezing also drops the chosen pots
-  try { localStorage.setItem(LOCK_KEY, lockOn ? "1" : "0"); } catch (e) { /* ignore */ }
-  syncMapLock();
-};
+/* The map stays frozen for anyone who can save: a finger never scrolls, zooms or
+   swipes the page on the map, and sliding anywhere on it chooses amppelit.
+   The page scrolls from outside the map. */
+const mapLocked = () => canWrite;
+function syncMapLock() { svg.classList.toggle("locked", mapLocked()); }
 function startPaint(id) {
   if (activeTab !== "all" && activeTab !== "plants" && !search.value.trim()) setTab("plants", false);
   paint = new Set();
@@ -1387,6 +1374,7 @@ function renderDetail() {
     const p = document.createElement("p"); p.className = "hint";
     p.textContent = TABS.find(t => t.kind === activeTab).hint;
     detail.appendChild(p);
+    renderCounts();
     return;
   }
   if (ampSel.length > 1) {
@@ -1419,6 +1407,45 @@ function renderDetail() {
   edit.onclick = () => openPopup(s.id, ampSel.length ? ampSel : null);
   btns.appendChild(edit);
   detail.appendChild(btns);
+}
+
+/* Under Ohjeet: how many of each plant this greenhouse has. Tapping a plant
+   searches for it, so its spots light up on the map. */
+const KIND_WORDS = { plants: ["amppeli", "amppelia"], table: ["pöydän osa", "pöydän osaa"], lane: ["kukkakouru", "kukkakourua"] };
+function renderCounts() {
+  const byPlant = new Map();
+  for (const s of sections) {
+    const name = s.species.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (!byPlant.has(key)) byPlant.set(key, { name, total: 0, kinds: {} });
+    const e = byPlant.get(key);
+    e.total++;
+    const k = s.floor ? "table" : s.kind;
+    e.kinds[k] = (e.kinds[k] || 0) + 1;
+  }
+  const h = document.createElement("h2"); h.className = "counts-title"; h.textContent = "Kasvit tässä kasvihuoneessa";
+  detail.appendChild(h);
+  if (!byPlant.size) {
+    const p = document.createElement("p"); p.className = "hint"; p.textContent = "Kasveja ei ole vielä merkitty.";
+    detail.appendChild(p);
+    return;
+  }
+  const ul = document.createElement("ul"); ul.className = "counts";
+  [...byPlant.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "fi")).forEach(e => {
+    const li = document.createElement("li");
+    const b = document.createElement("button"); b.type = "button";
+    const name = document.createElement("span"); name.className = "c-name"; name.textContent = e.name;
+    const where = document.createElement("span"); where.className = "c-where";
+    where.textContent = Object.entries(e.kinds).map(([k, n]) => `${n} ${KIND_WORDS[k][n === 1 ? 0 : 1]}`).join(", ");
+    const num = document.createElement("span"); num.className = "c-num"; num.textContent = e.total;
+    b.append(num, name, where);
+    b.title = "Näytä kartalla";
+    b.onclick = () => { search.value = search.value.trim().toLowerCase() === e.name.toLowerCase() ? "" : e.name; renderList(); applySearch(); };
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
+  detail.appendChild(ul);
 }
 
 async function commit(s) {
