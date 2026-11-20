@@ -769,6 +769,40 @@ async function persist(s, pin) {
   } catch (e) { /* ignore */ }
 }
 
+/* Several spots with the same plant (a patch of amppelit) in one request.
+   Resolves with the spots that were saved. An older Apps Script without
+   "saveMany" gets them one after another instead – never all at once, which
+   the script can't keep up with. */
+async function persistMany(list, pin) {
+  if (mode !== "sheets" || list.length < 2) {
+    const done = [];
+    for (const s of list) { await persist(s, pin); done.push(s); }
+    return done;
+  }
+  pendingSaves++; writeSeq++;
+  try {
+    const res = await fetch(SHEETS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "saveMany", pin: pin || "", by: loggerName(),
+        rows: list.map(s => ({ id: HOUSE_PREFIX + s.id, name: HOUSE_NAME + " · " + s.name, species: s.species, note: s.note })) }),
+    });
+    const out = await res.json();
+    if (out.ok) return list;
+    if (out.error === "bad pin") { const err = new Error("bad pin"); err.code = "bad_pin"; throw err; }
+    if (out.error !== "bad id") throw new Error(out.error || "save failed");
+  } finally {
+    pendingSaves--;
+  }
+  // older script: one at a time
+  const done = [];
+  for (const s of list) {
+    try { await persist(s, pin); done.push(s); }
+    catch (e) { if (e && e.code === "bad_pin") throw e; }
+  }
+  return done;
+}
+
 function applyRemote(docs) {
   const byDoc = {};
   docs.forEach(d => { if (d.exists) byDoc[d.id] = d.data() || {}; });
@@ -1234,7 +1268,8 @@ function showPopError(text) { popErr.textContent = text; popErr.hidden = !text; 
 function setPopBusy(on) {
   popBusy = on;
   pop.querySelectorAll(".pop-edit button").forEach(b => b.disabled = on);
-  popForm.querySelector("button[type=submit]").textContent = on ? "Tallennetaan…" : "Tallenna";
+  const n = popIds && popIds.length > 1 ? ` ${popIds.length} amppelia` : "";
+  popForm.querySelector("button[type=submit]").textContent = on ? `Tallennetaan${n}…` : "Tallenna";
 }
 
 async function saveFromPopup(species, note) {
@@ -1259,22 +1294,25 @@ async function saveFromPopup(species, note) {
   if (!pin) { showPopError("Tallentaminen vaatii nimesi ja PIN-koodin."); return; }
   showPopError("");
   setPopBusy(true);
-  const results = await Promise.allSettled(targets.map(t => persist({ ...t, species, note }, pin)));
-  const okOnes = targets.filter((t, i) => results[i].status === "fulfilled");
+  let saved = [], error = null;
+  try {
+    saved = (await persistMany(targets.map(t => ({ ...t, species, note })), pin)).map(x => x.id);
+  } catch (e) { error = e; }
+  const okOnes = targets.filter(t => saved.includes(t.id));
   okOnes.forEach(t => { t.species = species; t.note = note; refreshSection(t); });
-  const failed = results.filter(r => r.status === "rejected").map(r => r.reason);
-  if (failed.length) {
+  const left = targets.filter(t => !saved.includes(t.id));
+  if (left.length) {
     setPopBusy(false);
     // keep only the ones that didn't save, so "Tallenna" retries just those
-    popIds = targets.filter((t, i) => results[i].status === "rejected").map(t => t.id);
+    popIds = left.map(t => t.id);
     if (ampSel.length) setAmpSel(popIds);
     renderList(); applySearch();
-    if (failed.some(e => e && e.code === "bad_pin")) {
+    if (error && error.code === "bad_pin") {
       setPin("");
       showPopError("PIN-koodi on vaihtunut. Kirjoita uusi koodi ja paina Tallenna uudelleen.");
       askPin("bad");
     } else {
-      showPopError(okOnes.length ? `${failed.length} amppelia jäi tallentamatta. Paina Tallenna uudelleen.` : "Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
+      showPopError(okOnes.length ? `${left.length} amppelia jäi tallentamatta. Paina Tallenna uudelleen.` : "Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
     }
     return;
   }

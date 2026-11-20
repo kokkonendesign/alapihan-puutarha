@@ -67,7 +67,9 @@ function pinOk_(pin) {
 
 /** POST body (text/plain JSON): { id, name, species, note, pin, by } → upserts that section's row.
  *  { action: "check", pin } only checks the PIN (the map's opening screen).
- *  { action: "list", pin } returns all labels: { ok: true, sections }. */
+ *  { action: "list", pin } returns all labels: { ok: true, sections }.
+ *  { action: "saveMany", pin, by, rows: [{ id, name, species, note }, ...] } saves many
+ *  rows in one go (several amppelit with the same plant). */
 function doPost(e) {
   let data;
   try {
@@ -79,30 +81,34 @@ function doPost(e) {
   if (!pinOk_(data.pin)) { Utilities.sleep(1500); return json_({ ok: false, error: "bad pin" }); }
   if (data.action === "check") return json_({ ok: true, checked: true });
   if (data.action === "list") return json_({ ok: true, sections: sections_() });
-  const id = String(data.id || "").trim();
-  if (!/^[A-Za-z0-9-]{1,20}$/.test(id)) return json_({ ok: false, error: "bad id" });
+
   // a leading ' keeps text like "=..." from being run as a spreadsheet formula
   const plain = (v, max) => { const s = String(v || "").slice(0, max); return /^[=+\-@]/.test(s) ? "'" + s : s; };
-  const name = plain(data.name, 200);
-  const species = plain(data.species, 200);
-  const note = plain(data.note, 1000);
   const by = plain(data.by, 60);
+  const items = data.action === "saveMany" ? (Array.isArray(data.rows) ? data.rows.slice(0, 400) : []) : [data];
+  const rows = [];
+  for (const it of items) {
+    const id = String((it && it.id) || "").trim();
+    if (!/^[A-Za-z0-9-]{1,20}$/.test(id)) return json_({ ok: false, error: "bad id" });
+    rows.push([id, plain(it.name, 200), plain(it.species, 200), plain(it.note, 1000), new Date(), by]);
+  }
+  if (!rows.length) return json_({ ok: false, error: "nothing to save" });
 
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet = getSheet_();
     const last = sheet.getLastRow();
     const ids = last > 1 ? sheet.getRange(2, 1, last - 1, 1).getValues().map(r => String(r[0])) : [];
-    const idx = ids.indexOf(id);
-    const row = [id, name, species, note, new Date(), by];
-    if (idx >= 0) {
-      sheet.getRange(idx + 2, 1, 1, row.length).setValues([row]);
-    } else {
-      sheet.appendRow(row);
-    }
+    const added = [];
+    rows.forEach(row => {
+      const idx = ids.indexOf(row[0]);
+      if (idx >= 0) sheet.getRange(idx + 2, 1, 1, row.length).setValues([row]);
+      else { added.push(row); ids.push(row[0]); }
+    });
+    if (added.length) sheet.getRange(last + 1, 1, added.length, added[0].length).setValues(added);
   } finally {
     lock.releaseLock();
   }
-  return json_({ ok: true });
+  return json_({ ok: true, saved: rows.length });
 }
