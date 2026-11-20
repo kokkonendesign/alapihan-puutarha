@@ -48,13 +48,16 @@ function doGet() {
   return json_({ ok: false, error: "pin required" });
 }
 
-/** { sections: { "T4-S3": { species, note }, ... } } – all labels, for the map. */
+/** { sections: { "T4-S3": { species, note, at }, ... } } – all labels, for the map.
+ *  at = when the row was last saved (milliseconds), from the "Päivitetty" column. */
 function sections_() {
   const sheet = getSheet_();
-  const rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues() : [];
+  const rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues() : [];
   const sections = {};
-  rows.forEach(([id, , species, note]) => {
-    if (id) sections[String(id)] = { species: String(species || ""), note: String(note || "") };
+  rows.forEach(([id, , species, note, when]) => {
+    if (!id) return;
+    const at = when instanceof Date ? when.getTime() : (Date.parse(when) || 0);
+    sections[String(id)] = { species: String(species || ""), note: String(note || ""), at };
   });
   return sections;
 }

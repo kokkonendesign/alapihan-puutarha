@@ -394,6 +394,7 @@
     border-radius: 999px; padding: 3px 6px; text-shadow: 0 1px 1px rgba(0,0,0,.25); }
   ul.counts .c-name { font-weight: 600; }
   ul.counts .c-where { font-size: .8rem; color: var(--muted); }
+  ul.counts .c-date { float: right; font-weight: 400; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
   .group-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
   .group-title:first-of-type { margin-top: 0; }
 
@@ -837,6 +838,7 @@ function applyRemote(docs) {
     const def = DEFAULT_SECTIONS[i];
     s.species = d ? String(d.species || "") : def.species;
     s.note = d ? String(d.note || "") : def.note;
+    s.at = d ? Number(d.at) || 0 : 0;   // when it was last saved
   });
   sections.forEach(refreshSection);
   renderList();
@@ -1318,7 +1320,7 @@ async function saveFromPopup(species, note) {
     renderDetail();
   };
   if (mode !== "sheets") {
-    targets.forEach(t => { t.species = species; t.note = note; });
+    targets.forEach(t => { t.species = species; t.note = note; t.at = Date.now(); });
     closePopup();
     for (const t of targets) await commit(t);
     done();
@@ -1335,7 +1337,7 @@ async function saveFromPopup(species, note) {
     saved = (await persistMany(targets.map(t => ({ ...t, species, note })), pin)).map(x => x.id);
   } catch (e) { error = e; }
   const okOnes = targets.filter(t => saved.includes(t.id));
-  okOnes.forEach(t => { t.species = species; t.note = note; refreshSection(t); });
+  okOnes.forEach(t => { t.species = species; t.note = note; t.at = Date.now(); refreshSection(t); });
   const left = targets.filter(t => !saved.includes(t.id));
   if (left.length) {
     setPopBusy(false);
@@ -1433,9 +1435,10 @@ function renderCounts() {
     const name = s.species.trim();
     if (!name) continue;
     const key = name.toLowerCase();
-    if (!byPlant.has(key)) byPlant.set(key, { name, total: 0, kinds: {} });
+    if (!byPlant.has(key)) byPlant.set(key, { name, total: 0, kinds: {}, at: 0 });
     const e = byPlant.get(key);
     e.total++;
+    e.at = Math.max(e.at, s.at || 0);   // the newest change to this plant
     const k = s.floor ? "table" : s.kind;
     e.kinds[k] = (e.kinds[k] || 0) + 1;
   }
@@ -1456,6 +1459,13 @@ function renderCounts() {
     const num = document.createElement("span"); num.className = "c-num"; num.textContent = e.total;
     const c = colorOf(e.name);
     if (c) { num.style.background = c; num.style.color = "#fff"; }
+    if (e.at) {
+      const d = new Date(e.at), p2 = n => String(n).padStart(2, "0");
+      const date = document.createElement("span"); date.className = "c-date";
+      date.textContent = `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)}`;
+      date.title = "Viimeksi päivitetty";
+      name.append(" ", date);
+    }
     b.append(num, name, where);
     b.title = "Näytä kartalla";
     b.onclick = () => { search.value = search.value.trim().toLowerCase() === e.name.toLowerCase() ? "" : e.name; renderList(); applySearch(); };
