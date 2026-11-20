@@ -139,6 +139,8 @@
   .amp-row { pointer-events: none; }
   svg.map { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   svg.map.painting { cursor: crosshair; }
+  svg.map .sec.plants, svg.map.locked, svg.map.locked * { touch-action: none !important; }
+  svg.map.locked { overscroll-behavior: contain; }
   .amp-outline { fill: none; stroke: var(--plant-stroke); stroke-width: 1.5; stroke-dasharray: 3 5; opacity: .45; }
   .sec.plants .hit { fill: transparent; stroke: transparent; stroke-width: 2; rx: 14; pointer-events: none; }
   .sec.plants .tap { fill: transparent; }
@@ -431,7 +433,7 @@
 </footer>
 
 <div class="amp-bar" id="amp-bar" role="region" aria-label="Valitut amppelit" hidden>
-  <div class="amp-info"><b id="amp-count"></b><span>Napauta muita amppeleita tai liu'uta niiden yli (hiiren oikea painike tai sormi pohjassa).</span></div>
+  <div class="amp-info"><b id="amp-count"></b><span>Napauta muita amppeleita tai liu'uta sormella niiden yli (hiirellä oikea painike pohjassa).</span></div>
   <div class="amp-btns">
     <button type="button" class="primary" id="amp-mark">Merkitse kasvi</button>
     <button type="button" id="amp-row">Koko rivi</button>
@@ -599,7 +601,7 @@ const TABS = [
   { kind: "all",    label: "Kaikki",      hint: "Napauta pöytää, kukkakourua tai amppelia nähdäksesi, mitä siinä kasvaa." },
   { kind: "table",  label: "Pöydät",      hint: "Napauta jotakin pöydän kuudesta osasta tai pöydän sivulla olevaa kaistaa nähdäksesi, mitä siinä kasvaa." },
   { kind: "lane",   label: "Kukkakourut", hint: "Napauta kukkakourua (kapeat viivat pitkillä pöydillä) nähdäksesi, mitä siinä kasvaa." },
-  { kind: "plants", label: "Amppelit",    hint: "Napauta amppelia ja sitten muita samaan ryhmään kuuluvia – tai pidä hiiren oikeaa painiketta tai sormea hetki amppelin päällä ja liu'uta muiden yli. Paina sitten Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Vierekkäiset saman kasvin amppelit valitaan yhdessä." },
+  { kind: "plants", label: "Amppelit",    hint: "Napauta amppelia ja sitten muita samaan ryhmään kuuluvia – tai liu'uta sormella amppeleiden yli (hiirellä oikea painike pohjassa). Kartta pysyy paikallaan, kun Amppelit on valittuna. Paina sitten Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Vierekkäiset saman kasvin amppelit valitaan yhdessä." },
 ];
 
 /* Geometry, traced from the hand sketch (units are SVG viewBox units). */
@@ -1024,6 +1026,7 @@ function setAmpSel(ids) {
   selectedId = ampSel[0] || null;
   Object.entries(nodes).forEach(([k, n]) => n.g.classList.toggle("selected", ampSel.includes(k)));
   ampBar.hidden = !ampSel.length;
+  syncMapLock();
   if (ampSel.length) {
     const kinds = [...new Set(ampSel.map(id => byId(id).species).filter(Boolean))];
     document.getElementById("amp-count").textContent =
@@ -1035,10 +1038,13 @@ function tapAmp(id) {
   if (!ampSel.length) return setAmpSel(patchOf(id));
   setAmpSel(ampSel.includes(id) ? ampSel.filter(x => x !== id) : [...ampSel, id]);
 }
-/* Slide to choose: hold the right mouse button, or press and hold a finger on an
-   amppeli for a moment, then slide over the others – every pot passed gets chosen. */
-let paint = null, hold = null, skipClick = false;
+/* Slide to choose: hold the right mouse button on an amppeli and slide over the
+   others, or on iPad/phone just slide a finger over them – every pot passed gets
+   chosen. A finger that starts on an amppeli never scrolls or zooms the page, and
+   in the Amppelit tab (or while pots are chosen) the whole map stays still. */
+let paint = null, skipClick = false, touchPick = null;
 const potAt = (x, y) => document.elementFromPoint(x, y)?.closest(".sec.plants")?.dataset.id || null;
+const mapLocked = () => canWrite && (activeTab === "plants" || ampSel.length > 0);
 function paintAdd(id) {
   if (!id || !paint || paint.has(id)) return;
   paint.add(id);
@@ -1052,40 +1058,55 @@ function startPaint(id) {
   paintAdd(id);
 }
 function endPaint() {
-  if (hold) { clearTimeout(hold.timer); hold = null; }
   if (!paint) return;
   paint = null;
   svg.classList.remove("painting");
-  skipClick = true;                       // the press that ended the slide is not a tap
+  skipClick = true;                       // the press that ended the slide is not a click
   setTimeout(() => { skipClick = false; }, 400);
 }
+function syncMapLock() { svg.classList.toggle("locked", mapLocked()); }
+
+// mouse: right button
 svg.addEventListener("pointerdown", e => {
-  if (!canWrite) return;
+  if (!canWrite || e.pointerType !== "mouse" || e.button !== 2) return;
   const id = potAt(e.clientX, e.clientY);
-  if (!id) return;
-  if (e.pointerType === "mouse") {
-    if (e.button === 2) { e.preventDefault(); startPaint(id); }
-    return;
-  }
-  // finger or pen: hold still for a moment, then slide
-  if (hold) clearTimeout(hold.timer);
-  hold = { x: e.clientX, y: e.clientY, timer: setTimeout(() => { hold = null; startPaint(id); navigator.vibrate?.(15); }, 350) };
+  if (id) { e.preventDefault(); startPaint(id); }
 });
 svg.addEventListener("pointermove", e => {
   if (e.pointerType === "mouse" && paint) paintAdd(potAt(e.clientX, e.clientY));
 });
-// touch: once the slide has started, stop the page from scrolling and follow the finger
-svg.addEventListener("touchmove", e => {
-  const t = e.touches[0];
-  if (hold && Math.hypot(t.clientX - hold.x, t.clientY - hold.y) > 10) { clearTimeout(hold.timer); hold = null; }
-  if (!paint) return;
-  e.preventDefault();
-  paintAdd(potAt(t.clientX, t.clientY));
+window.addEventListener("pointerup", e => { if (e.pointerType === "mouse") endPaint(); });
+
+// finger (iPad, phone)
+svg.addEventListener("touchstart", e => {
+  if (!canWrite || e.touches.length > 1) { touchPick = null; endPaint(); return; }   // two fingers: zoom as usual
+  const t = e.touches[0], id = potAt(t.clientX, t.clientY);
+  if (!id && !mapLocked()) return;        // elsewhere on the map: scroll normally
+  e.preventDefault();                     // keep the map still: this finger chooses amppelit
+  touchPick = { start: id, painting: false };
 }, { passive: false });
-window.addEventListener("pointerup", endPaint);
-window.addEventListener("pointercancel", () => { if (!paint) endPaint(); });
-svg.addEventListener("touchend", endPaint);
-svg.addEventListener("touchcancel", endPaint);
+svg.addEventListener("touchmove", e => {
+  if (!touchPick) return;
+  e.preventDefault();
+  const t = e.touches[0], id = potAt(t.clientX, t.clientY);
+  if (!touchPick.painting) {
+    if (!id || id === touchPick.start) return;
+    touchPick.painting = true;
+    startPaint(touchPick.start || id);
+  }
+  paintAdd(id);
+}, { passive: false });
+svg.addEventListener("touchend", e => {
+  if (!touchPick) return;
+  const p = touchPick; touchPick = null;
+  e.preventDefault();
+  if (p.painting) { endPaint(); return; }
+  // no slide: a plain tap on whatever is under the finger
+  const t = e.changedTouches[0];
+  const id = document.elementFromPoint(t.clientX, t.clientY)?.closest(".sec")?.dataset.id;
+  if (id) select(id);
+}, { passive: false });
+svg.addEventListener("touchcancel", () => { touchPick = null; endPaint(); });
 // no right-click or long-press menu on the amppelit
 svg.addEventListener("contextmenu", e => { if (e.target.closest(".sec.plants")) e.preventDefault(); });
 
@@ -1369,6 +1390,7 @@ function renderTabs() {
 function setTab(kind, clearSelection) {
   activeTab = kind;
   svg.dataset.tab = kind;
+  if (typeof syncMapLock === "function") syncMapLock();
   try { localStorage.setItem(TAB_KEY, kind); } catch (e) { /* ignore */ }
   if (clearSelection && kind !== "all" && selectedId && byId(selectedId).kind !== kind) {
     selectedId = null; editing = false;
@@ -1460,7 +1482,11 @@ function setupHouseNav() {
   // swipe on the map: finger moves left → next house, right → previous
   const area = document.querySelector("main");
   let sw = null;
-  area.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse" && e.isPrimary) sw = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+  area.addEventListener("pointerdown", e => {
+    // sliding over amppelit chooses them, it doesn't switch houses
+    if (e.target.closest?.(".sec.plants") || svg.classList.contains("locked")) { sw = null; return; }
+    if (e.pointerType !== "mouse" && e.isPrimary) sw = { x: e.clientX, y: e.clientY, t: Date.now() };
+  });
   area.addEventListener("pointerup", e => {
     if (!sw || e.pointerType === "mouse") return;
     const dx = e.clientX - sw.x, dy = e.clientY - sw.y, dt = Date.now() - sw.t;
