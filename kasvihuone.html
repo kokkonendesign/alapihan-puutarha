@@ -324,6 +324,18 @@
   }
   @keyframes pop-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .pop { animation: none; } }
+  /* wider screens (iPad, computer): the pop-up sits on the right, so the map stays in view */
+  @media (min-width: 700px) {
+    .pop-backdrop { justify-content: flex-end; background: rgba(20, 26, 22, .12); }
+    .pop { width: min(380px, 42vw); animation-name: pop-side; }
+    .amp-bar { left: auto; right: max(16px, env(safe-area-inset-right, 0px)); transform: none; width: min(380px, 42vw); }
+  }
+  /* iPad upright: the map is full width, so it makes room for the pop-up */
+  @media (min-width: 700px) and (max-width: 899px) {
+    body.pop-open main { width: calc(100% - min(380px, 42vw) - 24px); min-width: 0; margin-left: 0; margin-right: auto; }
+  }
+  body.pop-open .edge-arrow { display: none !important; }
+  @keyframes pop-side { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
   @media (max-width: 560px) {
     .pop-backdrop { align-items: flex-end; padding-bottom: 0; }
     .pop { border-radius: 16px 16px 0 0; padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
@@ -1269,12 +1281,14 @@ function openPopup(id, ids) {
   setPopBusy(false);
 
   pop.hidden = false;
+  document.body.classList.add("pop-open");
   requestAnimationFrame(() => (canWrite ? popSpecies : document.getElementById("pop-close")).focus());
 }
 
 function closePopup() {
   if (pop.hidden || popBusy) return;
   pop.hidden = true;
+  document.body.classList.remove("pop-open");
   const id = popId; popId = null; popIds = null;
   nodes[id]?.g.focus({ preventScroll: true });
 }
