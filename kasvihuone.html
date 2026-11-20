@@ -284,6 +284,23 @@
 
   /* pop-up editor */
   [hidden] { display: none !important; }
+  /* bar for choosing several amppelit at once */
+  .amp-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(14px, env(safe-area-inset-bottom, 0px)); z-index: 30;
+    width: min(560px, calc(100% - 24px)); box-sizing: border-box; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; box-shadow: 0 10px 34px rgba(0,0,0,.2);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .amp-bar[hidden] { display: none; }
+  .amp-bar .amp-info { flex: 1 1 180px; font-size: .9rem; line-height: 1.3; }
+  .amp-bar .amp-info b { display: block; font-weight: 600; }
+  .amp-bar .amp-info span { color: var(--muted); font-size: .8rem; }
+  .amp-bar .amp-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  @media (max-width: 520px) {
+    .amp-bar { padding: 8px 10px; gap: 6px; }
+    .amp-bar .amp-info span { display: none; }
+    .amp-bar .amp-btns { width: 100%; flex-wrap: nowrap; }
+    .amp-bar .amp-btns button { padding: 9px 10px; font-size: .8rem; white-space: nowrap; }
+    .amp-bar .amp-btns .primary { flex: 1; }
+  }
   .pop-backdrop {
     position: fixed; inset: 0; z-index: 50;
     background: rgba(20, 26, 22, .45);
@@ -410,6 +427,15 @@
 <footer class="site-footer">
   <b>Alapihan Puutarha</b> Kasvihuonekartta – oikeudet muutoksiin pidätetään.
 </footer>
+
+<div class="amp-bar" id="amp-bar" role="region" aria-label="Valitut amppelit" hidden>
+  <div class="amp-info"><b id="amp-count"></b><span>Napauta muita amppeleita lisätäksesi ne tai poistaaksesi ne valinnasta.</span></div>
+  <div class="amp-btns">
+    <button type="button" class="primary" id="amp-mark">Merkitse kasvi</button>
+    <button type="button" id="amp-row">Koko rivi</button>
+    <button type="button" id="amp-cancel">Peruuta</button>
+  </div>
+</div>
 
 <div class="pop-backdrop" id="pop" hidden>
   <div class="pop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
@@ -571,7 +597,7 @@ const TABS = [
   { kind: "all",    label: "Kaikki",      hint: "Napauta pöytää, kukkakourua tai amppelia nähdäksesi, mitä siinä kasvaa." },
   { kind: "table",  label: "Pöydät",      hint: "Napauta jotakin pöydän kuudesta osasta tai pöydän sivulla olevaa kaistaa nähdäksesi, mitä siinä kasvaa." },
   { kind: "lane",   label: "Kukkakourut", hint: "Napauta kukkakourua (kapeat viivat pitkillä pöydillä) nähdäksesi, mitä siinä kasvaa." },
-  { kind: "plants", label: "Amppelit",    hint: "Napauta yksittäistä amppelia nähdäksesi, mitä siinä kasvaa. Jokaiseen amppeliin voi merkitä oman kasvin." },
+  { kind: "plants", label: "Amppelit",    hint: "Napauta amppelia ja sitten muita samaan ryhmään kuuluvia (tai Koko rivi), ja paina Merkitse kasvi: sama kasvi tallentuu kaikkiin kerralla. Vierekkäiset saman kasvin amppelit valitaan yhdessä." },
 ];
 
 /* Geometry, traced from the hand sketch (units are SVG viewBox units). */
@@ -964,9 +990,55 @@ const tip = document.getElementById("tip");
 const wrap = document.querySelector(".map-wrap");
 
 function setHighlight(id, on) {
-  nodes[id]?.g.classList.toggle("hl", on);
-  document.querySelector(`#list button[data-id="${id}"]`)?.classList.toggle("hl", on);
+  // an amppeli with a plant lights up together with its whole patch
+  for (const x of byId(id)?.kind === "plants" ? patchOf(id) : [id]) nodes[x]?.g.classList.toggle("hl", on);
 }
+
+/* ---------------- amppelit: one plant for several pots ----------------
+   A patch = neighbouring amppelit in one row with the same plant. Tapping an
+   amppeli chooses it (its whole patch if it has a plant); more taps add or
+   remove pots; "Merkitse kasvi" saves the same plant into all of them. */
+let ampSel = [];
+const ampBar = document.getElementById("amp-bar");
+const rowPots = row => sections.filter(x => x.row === row);
+function patchOf(id) {
+  const s = byId(id);
+  if (!s || s.kind !== "plants" || !s.species) return [id];
+  const pots = rowPots(s.row), i = pots.indexOf(s);
+  const same = x => x && x.species === s.species && x.note === s.note;
+  let a = i, b = i;
+  while (same(pots[a - 1])) a--;
+  while (same(pots[b + 1])) b++;
+  return pots.slice(a, b + 1).map(x => x.id);
+}
+function describePots(ids) {
+  if (ids.length === 1) return byId(ids[0]).name;
+  const rows = [...new Set(ids.map(id => byId(id).row))];
+  const where = rows.length === 1 ? byId(ids[0]).group.replace(/^Amppelit,\s*/, "") : rows.length + " riviä";
+  return `${ids.length} amppelia, ${where}`;
+}
+function setAmpSel(ids) {
+  ampSel = sections.filter(x => ids.includes(x.id)).map(x => x.id);   // keep map order
+  selectedId = ampSel[0] || null;
+  Object.entries(nodes).forEach(([k, n]) => n.g.classList.toggle("selected", ampSel.includes(k)));
+  ampBar.hidden = !ampSel.length;
+  if (ampSel.length) {
+    const kinds = [...new Set(ampSel.map(id => byId(id).species).filter(Boolean))];
+    document.getElementById("amp-count").textContent =
+      (ampSel.length === 1 ? "1 amppeli valittu" : `${ampSel.length} amppelia valittu`) + (kinds.length === 1 ? ` · ${kinds[0]}` : "");
+  }
+  renderDetail();
+}
+function tapAmp(id) {
+  if (!ampSel.length) return setAmpSel(patchOf(id));
+  setAmpSel(ampSel.includes(id) ? ampSel.filter(x => x !== id) : [...ampSel, id]);
+}
+document.getElementById("amp-mark").onclick = () => ampSel.length && openPopup(ampSel[0], ampSel);
+document.getElementById("amp-cancel").onclick = () => setAmpSel([]);
+document.getElementById("amp-row").onclick = () => {
+  const rows = [...new Set(ampSel.map(id => byId(id).row))];
+  setAmpSel([...ampSel, ...rows.flatMap(r => rowPots(r).map(x => x.id))]);
+};
 
 function bindSection(grp, id) {
   grp.addEventListener("pointerenter", e => { setHighlight(id, true); if (e.pointerType === "mouse") showTip(id, e); });
@@ -981,7 +1053,9 @@ function bindSection(grp, id) {
 function showTip(id, e) {
   const s = byId(id);
   tip.innerHTML = "";
-  const b = document.createElement("b"); b.textContent = `${s.id} · ${s.name}`;
+  const patch = s.kind === "plants" ? patchOf(id) : [id];
+  const b = document.createElement("b");
+  b.textContent = patch.length > 1 ? `${patch[0]}–${patch[patch.length - 1].split("-").pop()} · ${describePots(patch)}` : `${s.id} · ${s.name}`;
   tip.append(b, document.createTextNode(s.species || "Kasvia ei ole vielä merkitty"));
   tip.classList.add("show");
   moveTip(e);
@@ -993,6 +1067,12 @@ function moveTip(e) {
 }
 
 function select(id) {
+  if (byId(id).kind === "plants" && canWrite) {
+    if (activeTab !== "all" && activeTab !== "plants" && !search.value.trim()) setTab("plants", false);
+    tapAmp(id);
+    return;
+  }
+  if (ampSel.length) setAmpSel([]);
   selectedId = id;
   editing = false;
   const kind = byId(id).kind;
@@ -1007,24 +1087,30 @@ const pop = document.getElementById("pop");
 const popForm = document.getElementById("pop-form");
 const popSpecies = document.getElementById("pop-species");
 const popNote = document.getElementById("pop-note");
-let popId = null;
+let popId = null, popIds = null;   // popIds: several amppelit saved together
 
-function openPopup(id) {
+function openPopup(id, ids) {
   const s = byId(id);
   popId = id;
+  popIds = ids && ids.length ? ids : [id];
+  const group = popIds.map(byId);
   tip.classList.remove("show");
-  document.getElementById("pop-code").textContent = s.id;
-  document.getElementById("pop-title").textContent = s.name;
+  document.getElementById("pop-code").textContent = popIds.length > 1 ? popIds.length + " kpl" : s.id;
+  document.getElementById("pop-title").textContent = popIds.length > 1 ? describePots(popIds) : s.name;
   const kindName = s.floor ? "lattia" : s.part === "side" ? "pöydän sivukaista" : { table: "pöydän osa", lane: "kukkakouru", plants: "amppeli" }[s.kind];
   document.getElementById("pop-kind").textContent = kindName;
 
   pop.classList.toggle("readonly", !canWrite);
-  document.getElementById("pop-view").textContent = s.species || "Kasvia ei ole vielä merkitty";
-  document.getElementById("pop-view").classList.toggle("none", !s.species);
-  document.getElementById("pop-view-note").textContent = s.note;
-  popSpecies.value = s.species;
-  popNote.value = s.note;
-  document.getElementById("pop-clear").hidden = !s.species && !s.note;
+  // several pots: fill in the plant only if they all have the same one
+  const same = group.every(x => x.species === s.species && x.note === s.note);
+  const species = same ? s.species : "", note = same ? s.note : "";
+  document.getElementById("pop-view").textContent = species || (same ? "Kasvia ei ole vielä merkitty" : "Eri kasveja");
+  document.getElementById("pop-view").classList.toggle("none", !species);
+  document.getElementById("pop-view-note").textContent = note;
+  popSpecies.value = species;
+  popNote.value = note;
+  popSpecies.placeholder = popIds.length > 1 ? `Sama kasvi kaikkiin ${popIds.length} amppeliin` : "Kirjoita kasvi, esim. basilika";
+  document.getElementById("pop-clear").hidden = !group.some(x => x.species || x.note);
   showPopError("");
   setPopBusy(false);
 
@@ -1035,7 +1121,7 @@ function openPopup(id) {
 function closePopup() {
   if (pop.hidden || popBusy) return;
   pop.hidden = true;
-  const id = popId; popId = null;
+  const id = popId; popId = null; popIds = null;
   nodes[id]?.g.focus({ preventScroll: true });
 }
 
@@ -1049,13 +1135,19 @@ function setPopBusy(on) {
 }
 
 async function saveFromPopup(species, note) {
-  const s = popId && byId(popId);
-  if (!s) { closePopup(); return; }
+  const targets = (popIds || (popId ? [popId] : [])).map(byId).filter(Boolean);
+  if (!targets.length) { closePopup(); return; }
   if (popBusy) return;
+  const done = () => {
+    if (ampSel.length) setAmpSel([]);
+    editing = false;
+    renderDetail();
+  };
   if (mode !== "sheets") {
-    s.species = species; s.note = note;
+    targets.forEach(t => { t.species = species; t.note = note; });
     closePopup();
-    commit(s);
+    for (const t of targets) await commit(t);
+    done();
     return;
   }
   // Google Sheet: the family PIN is checked by the Apps Script before saving.
@@ -1064,28 +1156,31 @@ async function saveFromPopup(species, note) {
   if (!pin) { showPopError("Tallentaminen vaatii nimesi ja PIN-koodin."); return; }
   showPopError("");
   setPopBusy(true);
-  try {
-    await persist({ ...s, species, note }, pin);
-  } catch (e) {
+  const results = await Promise.allSettled(targets.map(t => persist({ ...t, species, note }, pin)));
+  const okOnes = targets.filter((t, i) => results[i].status === "fulfilled");
+  okOnes.forEach(t => { t.species = species; t.note = note; refreshSection(t); });
+  const failed = results.filter(r => r.status === "rejected").map(r => r.reason);
+  if (failed.length) {
     setPopBusy(false);
-    if (e && e.code === "bad_pin") {
+    // keep only the ones that didn't save, so "Tallenna" retries just those
+    popIds = targets.filter((t, i) => results[i].status === "rejected").map(t => t.id);
+    if (ampSel.length) setAmpSel(popIds);
+    renderList(); applySearch();
+    if (failed.some(e => e && e.code === "bad_pin")) {
       setPin("");
       showPopError("PIN-koodi on vaihtunut. Kirjoita uusi koodi ja paina Tallenna uudelleen.");
       askPin("bad");
     } else {
-      showPopError("Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
+      showPopError(okOnes.length ? `${failed.length} amppelia jäi tallentamatta. Paina Tallenna uudelleen.` : "Tallennus ei onnistunut. Tarkista verkkoyhteys ja yritä uudelleen.");
     }
     return;
   }
   setPin(pin);
   setPopBusy(false);
-  s.species = species; s.note = note;
   closePopup();
-  refreshSection(s);
   renderList();
   applySearch();
-  editing = false;
-  renderDetail();
+  done();
 }
 
 popForm.addEventListener("submit", e => {
@@ -1096,7 +1191,10 @@ document.getElementById("pop-cancel").onclick = closePopup;
 document.getElementById("pop-close").onclick = closePopup;
 document.getElementById("pop-clear").onclick = () => saveFromPopup("", "");
 pop.addEventListener("click", e => { if (e.target === pop) closePopup(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") closePopup(); });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (!pop.hidden) closePopup(); else if (ampSel.length) setAmpSel([]);
+});
 // keep keyboard focus inside the pop-up while it is open
 pop.addEventListener("keydown", e => {
   if (e.key !== "Tab") return;
@@ -1122,6 +1220,17 @@ function renderDetail() {
     detail.appendChild(p);
     return;
   }
+  if (ampSel.length > 1) {
+    const h3 = document.createElement("h3"); h3.textContent = describePots(ampSel);
+    const p = document.createElement("p"); p.className = "hint";
+    p.textContent = "Napauta amppeleita lisätäksesi tai poistaaksesi niitä. Merkitse kasvi tallentaa saman kasvin kaikkiin.";
+    const btns = document.createElement("div"); btns.className = "btns";
+    const b = document.createElement("button"); b.className = "primary"; b.textContent = "Merkitse kasvi";
+    b.onclick = () => openPopup(ampSel[0], ampSel);
+    btns.appendChild(b);
+    detail.append(h3, p, btns);
+    return;
+  }
   const s = byId(selectedId);
   const title = document.createElement("div"); title.className = "detail-title";
   const code = document.createElement("span"); code.className = "code"; code.textContent = s.id;
@@ -1138,7 +1247,7 @@ function renderDetail() {
   const btns = document.createElement("div"); btns.className = "btns";
   const edit = document.createElement("button"); edit.className = "primary";
   edit.textContent = s.species ? "Muokkaa kasvia" : "Lisää kasvi";
-  edit.onclick = () => openPopup(s.id);
+  edit.onclick = () => openPopup(s.id, ampSel.length ? ampSel : null);
   btns.appendChild(edit);
   detail.appendChild(btns);
 }
@@ -1207,6 +1316,7 @@ function setTab(kind, clearSelection) {
   try { localStorage.setItem(TAB_KEY, kind); } catch (e) { /* ignore */ }
   if (clearSelection && kind !== "all" && selectedId && byId(selectedId).kind !== kind) {
     selectedId = null; editing = false;
+    if (ampSel.length) setAmpSel([]);
     Object.values(nodes).forEach(n => n.g.classList.remove("selected"));
   }
   renderList();
